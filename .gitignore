@@ -1,0 +1,21 @@
+# Swift / SPM
+.build/
+.swiftpm/
+*.xcodeproj/
+xcuserdata/
+DerivedData/
+
+# Node.js
+bridge/node_modules/
+
+# macOS
+.DS_Store
+*.dSYM
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
