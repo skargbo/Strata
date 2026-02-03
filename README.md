@@ -32,12 +32,12 @@ Strata wraps [Claude Code](https://docs.anthropic.com/en/docs/claude-code) in a 
 ## Screenshots
 
 <p align="center">
-<img width="700" alt="Strata — welcome screen with permission modes" src="https://github.com/user-attachments/assets/edff782d-cf10-499c-bef1-5ed5b95b3273" />
+<img width="700" alt="Strata — welcome screen with permission modes" src="https://github.com/user-attachments/assets/095d716d-cb7f-41e7-b32c-3107fb3b4334" />
 </p>
 <p align="center"><em>Welcome screen — choose a working directory and permission mode</em></p>
 
 <p align="center">
-<img width="700" alt="Strata — expanded tool card showing file contents" src="https://github.com/user-attachments/assets/095d716d-cb7f-41e7-b32c-3107fb3b4334" />
+<img width="700" alt="Strata — expanded tool card showing file contents" src="https://github.com/user-attachments/assets/edff782d-cf10-499c-bef1-5ed5b95b3273" />
 </p>
 <p align="center"><em>Expandable tool cards with inline code preview</em></p>
 
