@@ -192,3 +192,16 @@ struct SessionTheme {
         }
     }
 }
+
+// MARK: - Path Display
+
+extension String {
+    /// Replaces the user's home directory prefix with `~` for cleaner display.
+    var abbreviatingHome: String {
+        let home = NSHomeDirectory()
+        if self.hasPrefix(home) {
+            return "~" + self.dropFirst(home.count)
+        }
+        return self
+    }
+}

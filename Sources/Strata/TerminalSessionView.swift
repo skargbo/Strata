@@ -35,7 +35,7 @@ struct TerminalSessionView: View {
             .background(.bar)
         }
         .navigationTitle(session.name)
-        .navigationSubtitle(session.workingDirectory)
+        .navigationSubtitle(session.workingDirectory.abbreviatingHome)
     }
 }
 

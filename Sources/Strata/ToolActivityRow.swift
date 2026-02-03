@@ -147,7 +147,7 @@ struct ToolActivityRow: View {
     private var editDetail: some View {
         VStack(alignment: .leading, spacing: 4) {
             if let path = activity.input.filePath {
-                Text(path)
+                Text(path.abbreviatingHome)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .textSelection(.enabled)
@@ -175,7 +175,7 @@ struct ToolActivityRow: View {
     private var readDetail: some View {
         VStack(alignment: .leading, spacing: 4) {
             if let path = activity.input.filePath {
-                Text(path)
+                Text(path.abbreviatingHome)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .textSelection(.enabled)
@@ -198,7 +198,7 @@ struct ToolActivityRow: View {
                 let display = filenames.prefix(15)
                 VStack(alignment: .leading, spacing: 2) {
                     ForEach(Array(display.enumerated()), id: \.offset) { _, name in
-                        Text(name)
+                        Text(name.abbreviatingHome)
                             .font(.system(.caption, design: .monospaced))
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
@@ -219,7 +219,7 @@ struct ToolActivityRow: View {
     private var writeDetail: some View {
         VStack(alignment: .leading, spacing: 4) {
             if let path = activity.input.filePath {
-                Text(path)
+                Text(path.abbreviatingHome)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .textSelection(.enabled)

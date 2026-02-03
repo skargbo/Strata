@@ -223,7 +223,7 @@ struct SessionView: View {
                             } label: {
                                 HStack(spacing: 6) {
                                     Image(systemName: "folder.fill")
-                                    Text(session.workingDirectory)
+                                    Text(session.workingDirectory.abbreviatingHome)
                                         .lineLimit(1)
                                         .truncationMode(.head)
                                     Image(systemName: "chevron.right")

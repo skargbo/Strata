@@ -84,7 +84,7 @@ struct FileChangeCard: View {
                         .foregroundStyle(iconColor(for: change.action))
 
                     // File path
-                    Text(change.filePath)
+                    Text(change.filePath.abbreviatingHome)
                         .font(.system(.caption, design: .monospaced))
                         .lineLimit(1)
                         .truncationMode(.middle)

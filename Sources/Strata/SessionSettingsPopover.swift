@@ -312,7 +312,7 @@ struct SessionSettingsPanel: View {
                     HStack(spacing: 6) {
                         Image(systemName: "folder.fill")
                             .foregroundStyle(.secondary)
-                        Text(abbreviatedPath(settings.workingDirectory))
+                        Text(settings.workingDirectory.abbreviatingHome)
                             .lineLimit(1)
                             .truncationMode(.head)
                         Spacer()
@@ -427,13 +427,6 @@ struct SessionSettingsPanel: View {
         }
     }
 
-    private func abbreviatedPath(_ path: String) -> String {
-        let home = NSHomeDirectory()
-        if path.hasPrefix(home) {
-            return "~" + path.dropFirst(home.count)
-        }
-        return path
-    }
 }
 
 // MARK: - FocusedValue for menu bar shortcut

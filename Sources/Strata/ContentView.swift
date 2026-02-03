@@ -16,7 +16,7 @@ struct ContentView: View {
                     case .claude(let session):
                         SessionView(session: session, appearanceMode: $manager.appearanceMode)
                             .navigationTitle(session.name)
-                            .navigationSubtitle(session.workingDirectory)
+                            .navigationSubtitle(session.workingDirectory.abbreviatingHome)
                     case .terminal(let session):
                         TerminalSessionView(session: session)
                     }

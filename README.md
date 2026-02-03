@@ -4,6 +4,10 @@
 
 Strata wraps [Claude Code](https://docs.anthropic.com/en/docs/claude-code) in a polished SwiftUI desktop app, replacing the terminal with a visual experience — conversation bubbles, inline tool cards, diff inspection, terminal sessions, and more.
 
+<p align="center">
+<img width="900" alt="Strata — chat view with inline tool cards and changes panel" src="https://github.com/user-attachments/assets/d53e7b61-e5a4-42b1-b9c8-7c52abf77d82" />
+</p>
+
 > **Note:** This project requires [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (authenticated via `claude login`) and a working Node.js installation.
 
 ---
@@ -22,6 +26,35 @@ Strata wraps [Claude Code](https://docs.anthropic.com/en/docs/claude-code) in a 
 - **Session persistence** — Conversations survive app restarts, stored locally
 - **Customizable** — Model selection, accent colors, font sizes, density, notification sounds, custom system prompts
 - **Dark / Light / Auto** appearance
+
+---
+
+## Screenshots
+
+<p align="center">
+<img width="700" alt="Strata — welcome screen with permission modes" src="https://github.com/user-attachments/assets/edff782d-cf10-499c-bef1-5ed5b95b3273" />
+</p>
+<p align="center"><em>Welcome screen — choose a working directory and permission mode</em></p>
+
+<p align="center">
+<img width="700" alt="Strata — expanded tool card showing file contents" src="https://github.com/user-attachments/assets/d8e82f0e-f331-45fd-bb81-e1625fc4615d" />
+</p>
+<p align="center"><em>Expandable tool cards with inline code preview</em></p>
+
+<p align="center">
+<img width="700" alt="Strata — model selection settings" src="https://github.com/user-attachments/assets/095d716d-cb7f-41e7-b32c-3107fb3b4334" />
+</p>
+<p align="center"><em>Per-session model selection</em></p>
+
+<p align="center">
+<img width="700" alt="Strata — appearance settings with theme and accent colors" src="https://github.com/user-attachments/assets/6b465ec2-2df5-48f4-866b-61177c6c1445" />
+</p>
+<p align="center"><em>Appearance settings — theme, accent color, font size, density</em></p>
+
+<p align="center">
+<img width="700" alt="Strata — behavior settings with working directory and permissions" src="https://github.com/user-attachments/assets/fc209119-2a81-41f6-8370-8e203dee74a0" />
+</p>
+<p align="center"><em>Behavior settings — working directory, permission mode, notifications, system prompt</em></p>
 
 ---
 

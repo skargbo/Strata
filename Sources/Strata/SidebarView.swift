@@ -67,7 +67,7 @@ struct SessionRow: View {
                     .font(.system(.body, design: .default))
                     .lineLimit(1)
 
-                Text(session.workingDirectory)
+                Text(session.workingDirectory.abbreviatingHome)
                     .font(.system(.caption2, design: .monospaced))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
