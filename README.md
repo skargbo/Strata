@@ -37,12 +37,12 @@ Strata wraps [Claude Code](https://docs.anthropic.com/en/docs/claude-code) in a 
 <p align="center"><em>Welcome screen — choose a working directory and permission mode</em></p>
 
 <p align="center">
-<img width="700" alt="Strata — expanded tool card showing file contents" src="https://github.com/user-attachments/assets/d8e82f0e-f331-45fd-bb81-e1625fc4615d" />
+<img width="700" alt="Strata — expanded tool card showing file contents" src="https://github.com/user-attachments/assets/095d716d-cb7f-41e7-b32c-3107fb3b4334" />
 </p>
 <p align="center"><em>Expandable tool cards with inline code preview</em></p>
 
 <p align="center">
-<img width="700" alt="Strata — model selection settings" src="https://github.com/user-attachments/assets/095d716d-cb7f-41e7-b32c-3107fb3b4334" />
+<img width="700" alt="Strata — model selection settings" src="https://github.com/user-attachments/assets/d8e82f0e-f331-45fd-bb81-e1625fc4615d" />
 </p>
 <p align="center"><em>Per-session model selection</em></p>
 
