@@ -158,7 +158,8 @@ extension UsageInfo {
             cacheReadTokens: cacheReadTokens,
             cacheCreationTokens: cacheCreationTokens,
             costUSD: costUSD,
-            durationMs: durationMs
+            durationMs: durationMs,
+            contextTokens: contextTokens
         )
     }
 
@@ -169,7 +170,8 @@ extension UsageInfo {
             cacheReadTokens: data.cacheReadTokens,
             cacheCreationTokens: data.cacheCreationTokens,
             costUSD: data.costUSD,
-            durationMs: data.durationMs
+            durationMs: data.durationMs,
+            contextTokens: data.contextTokens
         )
     }
 }

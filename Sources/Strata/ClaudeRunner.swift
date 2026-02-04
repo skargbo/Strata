@@ -208,6 +208,30 @@ final class ClaudeRunner: @unchecked Sendable {
         writeJSON(response)
     }
 
+    /// Send a compact request to summarize the conversation.
+    func compact(
+        sessionId: String,
+        workingDirectory: String,
+        permissionMode: String = "default",
+        model: String? = nil,
+        focusInstructions: String? = nil
+    ) {
+        var command: [String: Any] = [
+            "type": "compact",
+            "sessionId": sessionId,
+            "cwd": workingDirectory,
+            "permissionMode": permissionMode,
+        ]
+        if let model = model {
+            command["model"] = model
+        }
+        if let focus = focusInstructions, !focus.isEmpty {
+            command["focusInstructions"] = focus
+        }
+        isRunning = true
+        writeJSON(command)
+    }
+
     /// Cancel the current request.
     func cancel() {
         writeJSON(["type": "cancel"])
@@ -332,6 +356,7 @@ final class ClaudeRunner: @unchecked Sendable {
                 info.cacheCreationTokens = usageDict["cacheCreationTokens"] as? Int ?? 0
                 info.costUSD = json["costUSD"] as? Double ?? 0
                 info.durationMs = json["durationMs"] as? Int ?? 0
+                info.contextTokens = json["contextTokens"] as? Int ?? 0
                 usage = info
             }
 

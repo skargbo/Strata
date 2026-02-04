@@ -6,6 +6,7 @@ struct AppCommands: Commands {
     @FocusedValue(\.diffPanelToggle) var diffPanelToggle
     @FocusedValue(\.settingsToggle) var settingsToggle
     @FocusedValue(\.focusedModeToggle) var focusedModeToggle
+    @FocusedValue(\.commandPaletteToggle) var commandPaletteToggle
 
     var body: some Commands {
         // Replace the default New Window command
@@ -48,6 +49,13 @@ struct AppCommands: Commands {
         }
 
         CommandMenu("Tools") {
+            Button("Command Palette") {
+                commandPaletteToggle?.wrappedValue.toggle()
+            }
+            .keyboardShortcut("k", modifiers: .command)
+
+            Divider()
+
             Button("Cancel Response") {
                 if case .claude(let s) = manager.selectedSession {
                     s.cancel()

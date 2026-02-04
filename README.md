@@ -25,6 +25,10 @@ Strata wraps [Claude Code](https://docs.anthropic.com/en/docs/claude-code) in a 
 - **Smart input suggestions** — Ghost-text suggestions in the input field based on conversation context, accepted with Tab
 - **Session persistence** — Conversations survive app restarts, stored locally
 - **Customizable** — Model selection, accent colors, font sizes, density, notification sounds, custom system prompts
+- **Command palette** — Quick access to all actions via Cmd+K with fuzzy search
+- **Context usage bar** — Live token count with color-coded progress toward the context limit
+- **Conversation compaction** — Summarize long conversations to reclaim context space
+- **Claude Code commands** — Native access to /init, /review, /doctor, /memory, and /clear
 - **Dark / Light / Auto** appearance
 
 ---
@@ -145,6 +149,7 @@ Strata/
     ├── StrataApp.swift               # App entry point, icon, delegate
     ├── ContentView.swift             # NavigationSplitView layout, focus mode
     ├── CommandsMenu.swift            # Menu bar commands & shortcuts
+    ├── CommandPalette.swift          # Cmd+K command palette overlay
     │
     ├── SessionManager.swift          # Multi-session orchestration
     ├── Session.swift                 # Claude conversation state & logic
@@ -178,6 +183,7 @@ Strata/
 
 | Shortcut | Action |
 |---|---|
+| Cmd+K | Command palette |
 | Cmd+N | New Claude session |
 | Cmd+T | New terminal session |
 | Cmd+W | Close current session |

@@ -25,6 +25,13 @@ final class Session: Identifiable {
     var sessionId: String? // SDK session ID for conversation continuity
     var totalCost: Double = 0
     var lastUsage: UsageInfo?
+    var contextTokens: Int = 0
+    var isCompacting: Bool = false
+
+    var contextUsagePercent: Double {
+        guard contextTokens > 0 else { return 0 }
+        return Double(contextTokens) / Double(settings.model.maxContextTokens)
+    }
 
     // Permission state
     var pendingPermission: PermissionRequest?
@@ -129,6 +136,39 @@ final class Session: Identifiable {
         }
     }
 
+    /// Clear the conversation and reset session state.
+    func clear() {
+        runner.cancel()
+        messages.removeAll()
+        sessionId = nil
+        contextTokens = 0
+        currentResponse = ""
+        isResponding = false
+        isCompacting = false
+        needsNewAssistantMessage = false
+        lastUsage = nil
+        totalCost = 0
+    }
+
+    /// Compact the conversation to free context window space.
+    func compact(focusInstructions: String? = nil) {
+        guard let sid = sessionId, !isResponding else { return }
+        isCompacting = true
+        isResponding = true
+        currentResponse = ""
+        needsNewAssistantMessage = false
+        messages.append(ChatMessage(role: .system, text: "Compacting conversation\u{2026}"))
+        messages.append(ChatMessage(role: .assistant, text: ""))
+
+        runner.compact(
+            sessionId: sid,
+            workingDirectory: settings.workingDirectory,
+            permissionMode: settings.permissionMode,
+            model: settings.model.rawValue,
+            focusInstructions: focusInstructions
+        )
+    }
+
     /// Respond to a pending permission request.
     func respondToPermission(allow: Bool) {
         guard let request = pendingPermission else { return }
@@ -196,6 +236,17 @@ final class Session: Identifiable {
             if let usage = usage {
                 self.lastUsage = usage
                 self.totalCost = usage.costUSD
+                self.contextTokens = usage.contextTokens
+            }
+
+            if self.isCompacting {
+                self.isCompacting = false
+                // Update the compacting system message
+                if let idx = self.messages.lastIndex(where: {
+                    $0.role == .system && $0.text.contains("Compacting")
+                }) {
+                    self.messages[idx].text = "Conversation compacted."
+                }
             }
 
             // Update the last assistant message with whatever we have

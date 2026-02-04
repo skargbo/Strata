@@ -303,37 +303,53 @@ struct SessionView: View {
             // Usage stats bar
             if let usage = session.lastUsage {
                 Divider()
-                HStack(spacing: 16) {
-                    Label(
-                        "\(usage.totalInputTokens.formatted()) in / \(usage.outputTokens.formatted()) out",
-                        systemImage: "arrow.left.arrow.right"
-                    )
-
-                    if usage.cacheReadTokens > 0 {
-                        Label(
-                            "\(usage.cacheReadTokens.formatted()) cached",
-                            systemImage: "memorychip"
+                VStack(spacing: 4) {
+                    // Context usage bar
+                    if session.contextTokens > 0 {
+                        ContextUsageBar(
+                            contextTokens: session.contextTokens,
+                            maxTokens: session.settings.model.maxContextTokens,
+                            usagePercent: session.contextUsagePercent,
+                            isCompacting: session.isCompacting,
+                            canCompact: session.sessionId != nil && !session.isResponding,
+                            onCompact: { focus in
+                                session.compact(focusInstructions: focus)
+                            }
                         )
                     }
 
-                    Label(
-                        String(format: "$%.4f", session.totalCost),
-                        systemImage: "dollarsign.circle"
-                    )
+                    HStack(spacing: 16) {
+                        Label(
+                            "\(usage.totalInputTokens.formatted()) in / \(usage.outputTokens.formatted()) out",
+                            systemImage: "arrow.left.arrow.right"
+                        )
 
-                    Label(
-                        String(format: "%.1fs", Double(usage.durationMs) / 1000),
-                        systemImage: "clock"
-                    )
+                        if usage.cacheReadTokens > 0 {
+                            Label(
+                                "\(usage.cacheReadTokens.formatted()) cached",
+                                systemImage: "memorychip"
+                            )
+                        }
 
-                    Label(session.settings.model.shortName, systemImage: "cpu")
+                        Label(
+                            String(format: "$%.4f", session.totalCost),
+                            systemImage: "dollarsign.circle"
+                        )
 
-                    Spacer()
+                        Label(
+                            String(format: "%.1fs", Double(usage.durationMs) / 1000),
+                            systemImage: "clock"
+                        )
+
+                        Label(session.settings.model.shortName, systemImage: "cpu")
+
+                        Spacer()
+                    }
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 4)
                 }
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 4)
             }
 
             Divider()
@@ -478,6 +494,12 @@ struct SessionView: View {
         .focusedSceneValue(\.diffPanelToggle, $showDiffPanel)
         .focusedSceneValue(\.settingsToggle, $showSettings)
         .tint(session.settings.theme.accentColor.color)
+        .onReceive(NotificationCenter.default.publisher(for: .toggleDiffPanel)) { _ in
+            showDiffPanel.toggle()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .toggleSettings)) { _ in
+            showSettings.toggle()
+        }
         .onAppear {
             inputFocused = true
         }
@@ -599,6 +621,113 @@ private struct HoverButton: View {
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
         .animation(.easeInOut(duration: 0.15), value: isHovered)
+    }
+}
+
+// MARK: - Context Usage Bar
+
+private struct ContextUsageBar: View {
+    let contextTokens: Int
+    let maxTokens: Int
+    let usagePercent: Double
+    let isCompacting: Bool
+    let canCompact: Bool
+    let onCompact: (String?) -> Void
+
+    @State private var showCompactPopover = false
+    @State private var compactFocus = ""
+
+    private var barColor: Color {
+        if usagePercent > 0.8 { return .red }
+        if usagePercent > 0.5 { return .orange }
+        return .green
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(Color.primary.opacity(0.08))
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(barColor)
+                        .frame(width: geo.size.width * min(usagePercent, 1.0))
+                }
+            }
+            .frame(height: 6)
+            .frame(maxWidth: 120)
+
+            Text("\(contextTokens.formatted()) / \(maxTokens.formatted()) tokens (\(Int(usagePercent * 100))%)")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+
+            Spacer()
+
+            if usagePercent > 0.5 && canCompact && !isCompacting {
+                Button {
+                    showCompactPopover.toggle()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.trianglehead.2.clockwise.rotate.90")
+                            .font(.caption2)
+                        Text("Compact")
+                            .font(.caption2)
+                    }
+                    .foregroundStyle(usagePercent > 0.8 ? .red : .orange)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(
+                        (usagePercent > 0.8 ? Color.red : Color.orange).opacity(0.12),
+                        in: RoundedRectangle(cornerRadius: 4)
+                    )
+                }
+                .buttonStyle(.plain)
+                .popover(isPresented: $showCompactPopover) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Compact Conversation")
+                            .font(.headline)
+
+                        Text("Summarize the conversation to free context space.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        TextField("Focus on\u{2026} (optional)", text: $compactFocus)
+                            .textFieldStyle(.roundedBorder)
+                            .font(.callout)
+
+                        HStack {
+                            Button("Cancel") {
+                                showCompactPopover = false
+                            }
+                            .keyboardShortcut(.escape, modifiers: [])
+                            Spacer()
+                            Button("Compact") {
+                                let focus = compactFocus.isEmpty ? nil : compactFocus
+                                onCompact(focus)
+                                showCompactPopover = false
+                                compactFocus = ""
+                            }
+                            .keyboardShortcut(.return, modifiers: [])
+                            .buttonStyle(.borderedProminent)
+                        }
+                    }
+                    .padding(16)
+                    .frame(width: 300)
+                }
+            }
+
+            if isCompacting {
+                HStack(spacing: 4) {
+                    ProgressView()
+                        .controlSize(.mini)
+                    Text("Compacting\u{2026}")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 2)
     }
 }
 

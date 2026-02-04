@@ -88,6 +88,14 @@ enum ClaudeModel: String, CaseIterable, Identifiable {
         case .haiku: "Haiku"
         }
     }
+
+    var maxContextTokens: Int {
+        switch self {
+        case .sonnet: 200_000
+        case .opus:   200_000
+        case .haiku:  200_000
+        }
+    }
 }
 
 // MARK: - Notification Sound

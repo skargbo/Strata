@@ -178,6 +178,7 @@ struct UsageInfo {
     var cacheCreationTokens: Int = 0
     var costUSD: Double = 0
     var durationMs: Int = 0
+    var contextTokens: Int = 0
 
     var totalInputTokens: Int {
         inputTokens + cacheReadTokens + cacheCreationTokens

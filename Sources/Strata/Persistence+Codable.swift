@@ -127,6 +127,7 @@ struct UsageInfoData: Codable {
     var cacheCreationTokens: Int
     var costUSD: Double
     var durationMs: Int
+    var contextTokens: Int = 0
 }
 
 // MARK: - Default Settings

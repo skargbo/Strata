@@ -5,6 +5,7 @@ struct ContentView: View {
     @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
     @State private var isFocusedMode: Bool = false
     @State private var preFocusVisibility: NavigationSplitViewVisibility = .automatic
+    @State private var showCommandPalette: Bool = false
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
@@ -31,8 +32,19 @@ struct ContentView: View {
             }
         }
         .navigationSplitViewStyle(.balanced)
+        .toolbar {
+            ToolbarItem(placement: .automatic) {
+                Button {
+                    showCommandPalette = true
+                } label: {
+                    Image(systemName: "wrench.and.screwdriver")
+                }
+                .help("Command Palette (⌘K)")
+            }
+        }
         .frame(minWidth: 800, minHeight: 500)
         .focusedSceneValue(\.focusedModeToggle, $isFocusedMode)
+        .focusedSceneValue(\.commandPaletteToggle, $showCommandPalette)
         .onChange(of: isFocusedMode) { _, focused in
             withAnimation(.easeInOut(duration: 0.25)) {
                 if focused {
@@ -62,6 +74,61 @@ struct ContentView: View {
                 .padding(.top, 8)
                 .transition(.opacity.combined(with: .move(edge: .leading)))
             }
+        }
+        .overlay {
+            if showCommandPalette {
+                CommandPaletteOverlay(
+                    isPresented: $showCommandPalette,
+                    manager: manager,
+                    onAction: { action in
+                        executeCommandPaletteAction(action)
+                    }
+                )
+                .transition(.opacity.combined(with: .scale(scale: 0.95)))
+            }
+        }
+        .animation(.easeInOut(duration: 0.15), value: showCommandPalette)
+    }
+
+    private func executeCommandPaletteAction(_ action: CommandPaletteAction) {
+        showCommandPalette = false
+        switch action {
+        case .newSession:
+            manager.newSession()
+        case .newTerminal:
+            manager.newTerminalSession()
+        case .toggleFocusMode:
+            isFocusedMode.toggle()
+        case .toggleChangesPanel:
+            NotificationCenter.default.post(name: .toggleDiffPanel, object: nil)
+        case .openSettings:
+            NotificationCenter.default.post(name: .toggleSettings, object: nil)
+        case .compactConversation:
+            if case .claude(let session) = manager.selectedSession {
+                session.compact()
+            }
+        case .clearConversation:
+            if case .claude(let session) = manager.selectedSession {
+                session.clear()
+            }
+        case .initProject:
+            if case .claude(let session) = manager.selectedSession {
+                session.send("/init")
+            }
+        case .reviewCode:
+            if case .claude(let session) = manager.selectedSession {
+                session.send("/review")
+            }
+        case .runDoctor:
+            if case .claude(let session) = manager.selectedSession {
+                session.send("/doctor")
+            }
+        case .editMemory:
+            if case .claude(let session) = manager.selectedSession {
+                session.send("/memory")
+            }
+        case .selectSession(let id):
+            manager.select(id)
         }
     }
 }

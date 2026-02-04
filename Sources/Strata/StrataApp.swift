@@ -2,6 +2,10 @@ import AppKit
 import Combine
 import SwiftUI
 
+enum AppVersion {
+    static let current = "1.1.0"
+}
+
 @main
 struct StrataApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate

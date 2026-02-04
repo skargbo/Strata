@@ -12,6 +12,7 @@ let currentQuery = null;
 const pendingPermissions = new Map(); // requestId -> { resolve, originalInput }
 let currentToolUse = null; // { toolName, input } — set in canUseTool, used in user event
 const toolUseQueue = []; // FIFO queue of { toolName, input } from assistant tool_use blocks
+let lastContextTokens = 0; // Total tokens in the conversation context (from last API call)
 
 // --- Helpers ---
 function emit(obj) {
@@ -42,6 +43,10 @@ rl.on("line", (line) => {
 
     case "permission_response":
       handlePermissionResponse(msg);
+      break;
+
+    case "compact":
+      handleCompact(msg);
       break;
 
     case "cancel":
@@ -91,6 +96,10 @@ async function handleQuery(msg) {
 
   currentToolUse = null;
   toolUseQueue.length = 0;
+
+  if (!sessionId) {
+    lastContextTokens = 0;
+  }
 
   // Clear orphaned permissions from any previous query
   for (const [id, pending] of pendingPermissions) {
@@ -201,6 +210,14 @@ function handleStreamEvent(event) {
 // --- Result handler ---
 function handleResult(event) {
   const usage = event.usage || {};
+  // Context = total input tokens from this API call. This represents the full
+  // conversation size because each call sends the entire history. Output tokens
+  // are excluded — they'll appear as input on the next call.
+  lastContextTokens =
+    (usage.input_tokens || 0) +
+    (usage.cache_read_input_tokens || 0) +
+    (usage.cache_creation_input_tokens || 0);
+
   emit({
     type: "result",
     text: event.result || "",
@@ -215,6 +232,29 @@ function handleResult(event) {
     },
     costUSD: event.total_cost_usd || 0,
     durationMs: event.duration_ms || 0,
+    contextTokens: lastContextTokens,
+  });
+}
+
+// --- Compact handler ---
+async function handleCompact(msg) {
+  const { sessionId, cwd, permissionMode, model, focusInstructions } = msg;
+  if (!sessionId) {
+    emit({ type: "error", message: "Cannot compact without a session ID" });
+    return;
+  }
+
+  const compactPrompt = focusInstructions
+    ? `/compact ${focusInstructions}`
+    : "/compact";
+
+  handleQuery({
+    type: "query",
+    prompt: compactPrompt,
+    sessionId,
+    cwd: cwd || process.cwd(),
+    permissionMode: permissionMode || "default",
+    model,
   });
 }
 
