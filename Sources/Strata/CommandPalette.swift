@@ -138,10 +138,10 @@ struct CommandPaletteOverlay: View {
                     category: .quickActions, action: .runDoctor, shortcut: nil
                 ))
                 items.append(CommandPaletteItem(
-                    id: "edit-memory", title: "Edit Memory",
-                    subtitle: "View and edit CLAUDE.md memory",
+                    id: "edit-memory", title: "Memory Viewer",
+                    subtitle: "View and edit CLAUDE.md memory files",
                     icon: "brain",
-                    category: .quickActions, action: .editMemory, shortcut: nil
+                    category: .quickActions, action: .editMemory, shortcut: "\u{2318}\u{21e7}M"
                 ))
             }
         }
@@ -372,4 +372,5 @@ extension Notification.Name {
     static let toggleDiffPanel = Notification.Name("strata.toggleDiffPanel")
     static let toggleSettings = Notification.Name("strata.toggleSettings")
     static let toggleSkillsPanel = Notification.Name("strata.toggleSkillsPanel")
+    static let toggleMemoryViewer = Notification.Name("strata.toggleMemoryViewer")
 }

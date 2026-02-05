@@ -8,6 +8,7 @@ struct AppCommands: Commands {
     @FocusedValue(\.focusedModeToggle) var focusedModeToggle
     @FocusedValue(\.commandPaletteToggle) var commandPaletteToggle
     @FocusedValue(\.skillsPanelToggle) var skillsPanelToggle
+    @FocusedValue(\.memoryViewerToggle) var memoryViewerToggle
 
     var body: some Commands {
         // Replace the default New Window command
@@ -87,6 +88,12 @@ struct AppCommands: Commands {
                 skillsPanelToggle?.wrappedValue.toggle()
             }
             .keyboardShortcut("s", modifiers: [.command, .shift])
+            .disabled(manager.selectedSession == nil)
+
+            Button("Memory Viewer") {
+                memoryViewerToggle?.wrappedValue.toggle()
+            }
+            .keyboardShortcut("m", modifiers: [.command, .shift])
             .disabled(manager.selectedSession == nil)
 
             Divider()

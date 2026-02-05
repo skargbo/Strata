@@ -8,6 +8,7 @@ struct SessionView: View {
     @State private var showDiffPanel: Bool = false
     @State private var showSettings: Bool = false
     @State private var showSkills: Bool = false
+    @State private var showMemoryViewer: Bool = false
     @FocusState private var inputFocused: Bool
     @State private var triggerInputFocus: Bool = false
     @State private var suggestionIndex: Int = 0
@@ -466,6 +467,13 @@ struct SessionView: View {
             ToolbarItem(placement: .primaryAction) {
                 HStack(spacing: 4) {
                     Button {
+                        showMemoryViewer.toggle()
+                    } label: {
+                        Image(systemName: "brain")
+                    }
+                    .help("Memory Viewer (Cmd+Shift+M)")
+
+                    Button {
                         session.scanSkills(force: true)
                         showSkills.toggle()
                     } label: {
@@ -529,9 +537,13 @@ struct SessionView: View {
                 }
             )
         }
+        .sheet(isPresented: $showMemoryViewer) {
+            MemoryViewerPanel(workingDirectory: session.workingDirectory)
+        }
         .focusedSceneValue(\.diffPanelToggle, $showDiffPanel)
         .focusedSceneValue(\.settingsToggle, $showSettings)
         .focusedSceneValue(\.skillsPanelToggle, $showSkills)
+        .focusedSceneValue(\.memoryViewerToggle, $showMemoryViewer)
         .tint(session.settings.theme.accentColor.color)
         .onReceive(NotificationCenter.default.publisher(for: .toggleDiffPanel)) { _ in
             showDiffPanel.toggle()
@@ -542,6 +554,9 @@ struct SessionView: View {
         .onReceive(NotificationCenter.default.publisher(for: .toggleSkillsPanel)) { _ in
             session.scanSkills(force: true)
             showSkills.toggle()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .toggleMemoryViewer)) { _ in
+            showMemoryViewer.toggle()
         }
         .onAppear {
             inputFocused = true
