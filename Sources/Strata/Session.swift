@@ -28,6 +28,13 @@ final class Session: Identifiable {
     var contextTokens: Int = 0
     var isCompacting: Bool = false
 
+    // Skills cache
+    var cachedSkills: [Skill] = []
+    var skillsLastScanned: Date? = nil
+
+    // Task tracking
+    var tasks: [String: SessionTask] = [:]
+
     var contextUsagePercent: Double {
         guard contextTokens > 0 else { return 0 }
         return Double(contextTokens) / Double(settings.model.maxContextTokens)
@@ -81,6 +88,12 @@ final class Session: Identifiable {
         self.sessionId = snapshot.sessionId
         self.totalCost = snapshot.totalCost
         self.lastUsage = snapshot.lastUsage.map { UsageInfo.from($0) }
+        if let taskData = snapshot.tasks {
+            for td in taskData {
+                let task = SessionTask.from(td)
+                self.tasks[task.id] = task
+            }
+        }
         setupCallbacks()
     }
 
@@ -94,7 +107,8 @@ final class Session: Identifiable {
             messages: messages.map { $0.toData() },
             sessionId: sessionId,
             totalCost: totalCost,
-            lastUsage: lastUsage?.toData()
+            lastUsage: lastUsage?.toData(),
+            tasks: tasks.values.map { $0.toData() }
         )
     }
 
@@ -113,6 +127,50 @@ final class Session: Identifiable {
 
         runner.send(
             message: text,
+            sessionId: sessionId,
+            workingDirectory: settings.workingDirectory,
+            permissionMode: settings.permissionMode,
+            model: settings.model.rawValue,
+            systemPrompt: settings.customSystemPrompt.isEmpty ? nil : settings.customSystemPrompt
+        )
+    }
+
+    /// Send a skill invocation to Claude.
+    /// Displays a clean `/skill-name` in chat but sends the full skill instructions to Claude.
+    func sendSkill(_ skill: Skill, arguments: String) {
+        guard !isResponding else { return }
+
+        // Clean display text for chat
+        let displayText = arguments.isEmpty
+            ? "/\(skill.name)"
+            : "/\(skill.name) \(arguments)"
+        messages.append(ChatMessage(role: .user, text: displayText))
+
+        // Actual message includes skill instructions
+        let fullMessage: String
+        if arguments.isEmpty {
+            fullMessage = """
+            Use the following skill instructions to help me:
+
+            \(skill.instructions)
+            """
+        } else {
+            fullMessage = """
+            \(arguments)
+
+            Use the following skill instructions:
+
+            \(skill.instructions)
+            """
+        }
+
+        isResponding = true
+        currentResponse = ""
+        needsNewAssistantMessage = false
+        messages.append(ChatMessage(role: .assistant, text: ""))
+
+        runner.send(
+            message: fullMessage,
             sessionId: sessionId,
             workingDirectory: settings.workingDirectory,
             permissionMode: settings.permissionMode,
@@ -148,6 +206,7 @@ final class Session: Identifiable {
         needsNewAssistantMessage = false
         lastUsage = nil
         totalCost = 0
+        tasks.removeAll()
     }
 
     /// Compact the conversation to free context window space.
@@ -167,6 +226,61 @@ final class Session: Identifiable {
             model: settings.model.rawValue,
             focusInstructions: focusInstructions
         )
+    }
+
+    /// Scan for available skills and cache the results.
+    func scanSkills(force: Bool = false) {
+        let now = Date()
+        if !force,
+           !cachedSkills.isEmpty,
+           let lastScan = skillsLastScanned,
+           now.timeIntervalSince(lastScan) < 30
+        {
+            return
+        }
+        cachedSkills = SkillScanner.scan(workingDirectory: settings.workingDirectory)
+        skillsLastScanned = now
+        SkillCatalog.shared.markInstalled(localSkills: cachedSkills)
+    }
+
+    /// Install a skill from the remote catalog.
+    func installCatalogSkill(_ skill: CatalogSkill) throws {
+        try SkillCatalog.shared.install(skill)
+        scanSkills(force: true)
+    }
+
+    /// Uninstall a skill that was installed from the catalog.
+    func uninstallCatalogSkill(_ skill: CatalogSkill) throws {
+        try SkillCatalog.shared.uninstall(skill)
+        scanSkills(force: true)
+    }
+
+    /// Match cached skills against recent messages using keyword overlap.
+    func suggestedSkills() -> [Skill] {
+        guard !cachedSkills.isEmpty else { return [] }
+
+        let recentUserMessages = messages
+            .filter { $0.role == .user }
+            .suffix(3)
+            .map(\.text)
+
+        guard !recentUserMessages.isEmpty else { return [] }
+
+        let messageText = recentUserMessages.joined(separator: " ")
+        let messageKeywords = SkillParser.extractKeywords(from: messageText)
+
+        guard !messageKeywords.isEmpty else { return [] }
+
+        let scored: [(Skill, Int)] = cachedSkills
+            .filter(\.userInvocable)
+            .map { skill in
+                let overlap = skill.keywords.intersection(messageKeywords).count
+                return (skill, overlap)
+            }
+            .filter { $0.1 > 0 }
+            .sorted { $0.1 > $1.1 }
+
+        return Array(scored.prefix(2).map(\.0))
     }
 
     /// Respond to a pending permission request.
@@ -220,6 +334,28 @@ final class Session: Identifiable {
                 text: activity.summaryText,
                 toolActivity: activity
             ))
+
+            // Update task state from task tool results
+            switch activity.toolName {
+            case "TaskCreate", "TaskUpdate", "TaskGet":
+                if let task = activity.result.taskResult {
+                    if task.status == .deleted {
+                        self.tasks.removeValue(forKey: task.id)
+                    } else {
+                        self.tasks[task.id] = task
+                    }
+                }
+            case "TodoWrite", "TodoUpdate", "TaskList", "TodoRead":
+                // TodoWrite returns newTodos array - replace all tasks
+                if let list = activity.result.taskListResult {
+                    var updated: [String: SessionTask] = [:]
+                    for task in list { updated[task.id] = task }
+                    self.tasks = updated
+                }
+            default:
+                break
+            }
+
             self.needsNewAssistantMessage = true
             self.onDataChanged?()
         }

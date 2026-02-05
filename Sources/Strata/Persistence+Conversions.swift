@@ -59,7 +59,11 @@ extension ToolActivityInput {
             content: content,
             pattern: pattern,
             path: path,
-            rawJSON: Self.encodeRawDictionary(raw)
+            rawJSON: Self.encodeRawDictionary(raw),
+            subject: subject,
+            taskId: taskId,
+            taskStatus: taskStatus,
+            activeForm: activeForm
         )
     }
 
@@ -73,7 +77,11 @@ extension ToolActivityInput {
             content: data.content,
             pattern: data.pattern,
             path: data.path,
-            raw: decodeRawDictionary(data.rawJSON)
+            raw: decodeRawDictionary(data.rawJSON),
+            subject: data.subject,
+            taskId: data.taskId,
+            taskStatus: data.taskStatus,
+            activeForm: data.activeForm
         )
     }
 
@@ -104,7 +112,9 @@ extension ToolActivityResult {
             filenames: filenames,
             fileCount: fileCount,
             diffLines: diffLines?.map { $0.toData() },
-            rawJSON: Self.encodeRawValue(raw)
+            rawJSON: Self.encodeRawValue(raw),
+            taskResult: taskResult?.toData(),
+            taskListResult: taskListResult?.map { $0.toData() }
         )
     }
 
@@ -117,7 +127,9 @@ extension ToolActivityResult {
             filenames: data.filenames,
             fileCount: data.fileCount,
             diffLines: data.diffLines?.map { DiffLine.from($0) },
-            raw: decodeRawValue(data.rawJSON)
+            raw: decodeRawValue(data.rawJSON),
+            taskResult: data.taskResult.map { SessionTask.from($0) },
+            taskListResult: data.taskListResult?.map { SessionTask.from($0) }
         )
     }
 
@@ -172,6 +184,32 @@ extension UsageInfo {
             costUSD: data.costUSD,
             durationMs: data.durationMs,
             contextTokens: data.contextTokens
+        )
+    }
+}
+
+// MARK: - SessionTask <-> SessionTaskData
+
+extension SessionTask {
+    func toData() -> SessionTaskData {
+        SessionTaskData(
+            id: id,
+            subject: subject,
+            status: status.rawValue,
+            activeForm: activeForm,
+            description: description,
+            blockedBy: blockedBy
+        )
+    }
+
+    static func from(_ data: SessionTaskData) -> SessionTask {
+        SessionTask(
+            id: data.id,
+            subject: data.subject,
+            status: TaskStatus(rawValue: data.status) ?? .pending,
+            activeForm: data.activeForm,
+            description: data.description,
+            blockedBy: data.blockedBy
         )
     }
 }

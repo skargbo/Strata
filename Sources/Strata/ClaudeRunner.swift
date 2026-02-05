@@ -426,6 +426,13 @@ final class ClaudeRunner: @unchecked Sendable {
         input.pattern = dict["pattern"] as? String
         input.path = dict["path"] as? String
         input.raw = dict
+
+        // Task tool fields
+        input.subject = dict["subject"] as? String
+        input.taskId = dict["taskId"] as? String
+        input.taskStatus = dict["status"] as? String
+        input.activeForm = dict["activeForm"] as? String
+
         return input
     }
 
@@ -479,11 +486,64 @@ final class ClaudeRunner: @unchecked Sendable {
             result.filenames = dict["filenames"] as? [String]
             result.fileCount = dict["numFiles"] as? Int
 
+        case "TaskCreate", "TaskUpdate", "TaskGet":
+            result.taskResult = Self.parseSessionTask(dict)
+
+        case "TodoWrite", "TodoUpdate":
+            // TodoWrite uses newTodos array with content/activeForm/status fields
+            if let newTodos = dict["newTodos"] as? [[String: Any]] {
+                result.taskListResult = newTodos.enumerated().compactMap { index, todo in
+                    Self.parseTodoItem(todo, index: index)
+                }
+            }
+
+        case "TaskList", "TodoRead":
+            // Result may be array directly or nested under a key
+            if let arr = data as? [[String: Any]] {
+                result.taskListResult = arr.compactMap { Self.parseSessionTask($0) }
+            } else if let tasks = dict["tasks"] as? [[String: Any]] {
+                result.taskListResult = tasks.compactMap { Self.parseSessionTask($0) }
+            } else if let newTodos = dict["newTodos"] as? [[String: Any]] {
+                result.taskListResult = newTodos.enumerated().compactMap { index, todo in
+                    Self.parseTodoItem(todo, index: index)
+                }
+            }
+
         default:
             result.raw = data
         }
 
         return result
+    }
+
+    private static func parseSessionTask(_ dict: [String: Any]) -> SessionTask? {
+        // ID is required, but subject can have a fallback
+        guard let id = (dict["id"] as? String) ?? (dict["id"] as? Int).map({ String($0) })
+                ?? (dict["taskId"] as? String) else { return nil }
+        let subject = dict["subject"] as? String ?? dict["title"] as? String ?? "Task #\(id)"
+        return SessionTask(
+            id: id,
+            subject: subject,
+            status: SessionTask.TaskStatus(rawValue: dict["status"] as? String ?? "pending") ?? .pending,
+            activeForm: dict["activeForm"] as? String,
+            description: dict["description"] as? String,
+            blockedBy: dict["blockedBy"] as? [String]
+        )
+    }
+
+    /// Parse a todo item from the SDK's TodoWrite format (content/activeForm/status, no id)
+    private static func parseTodoItem(_ dict: [String: Any], index: Int) -> SessionTask? {
+        let content = dict["content"] as? String ?? "Task \(index + 1)"
+        let statusStr = dict["status"] as? String ?? "pending"
+        let status = SessionTask.TaskStatus(rawValue: statusStr) ?? .pending
+        return SessionTask(
+            id: String(index + 1),
+            subject: content,
+            status: status,
+            activeForm: dict["activeForm"] as? String,
+            description: nil,
+            blockedBy: nil
+        )
     }
 
     // MARK: - Path Resolution

@@ -88,6 +88,32 @@ struct ToolActivity: Identifiable {
             let pattern = input.pattern ?? "pattern"
             let count = result.fileCount ?? 0
             return "Grep /\(pattern)/ \u{2014} \(count) match\(count == 1 ? "" : "es")"
+        case "TaskCreate":
+            // Subject may be in input or in result
+            let subject = input.subject ?? result.taskResult?.subject ?? "task"
+            return "Created task: \(subject)"
+        case "TodoWrite":
+            // TodoWrite updates the full task list
+            let count = result.taskListResult?.count ?? 0
+            let inProgress = result.taskListResult?.first { $0.status == .in_progress }
+            if let active = inProgress {
+                return "\(active.subject)"
+            }
+            return "Updated \(count) task\(count == 1 ? "" : "s")"
+        case "TaskUpdate":
+            // Status/id may be in input or result
+            let status = input.taskStatus ?? result.taskResult?.status.rawValue ?? "updated"
+            let id = input.taskId ?? result.taskResult?.id ?? "?"
+            return "Task #\(id) \u{2192} \(status)"
+        case "TodoUpdate":
+            let count = result.taskListResult?.count ?? 0
+            return "Updated \(count) task\(count == 1 ? "" : "s")"
+        case "TaskList", "TodoRead":
+            let count = result.taskListResult?.count ?? 0
+            return "Listed \(count) task\(count == 1 ? "" : "s")"
+        case "TaskGet":
+            let id = input.taskId ?? result.taskResult?.id ?? "?"
+            return "Fetched task #\(id)"
         default:
             return toolName
         }
@@ -101,6 +127,8 @@ struct ToolActivity: Identifiable {
         case "Read": return "doc.text.fill"
         case "Glob": return "doc.text.magnifyingglass"
         case "Grep": return "magnifyingglass"
+        case "TaskCreate", "TaskUpdate", "TaskList", "TaskGet",
+             "TodoWrite", "TodoUpdate", "TodoRead": return "checklist"
         default: return "wrench.fill"
         }
     }
@@ -112,6 +140,8 @@ struct ToolActivity: Identifiable {
         case "Write": return .blue
         case "Read": return .green
         case "Glob", "Grep": return .purple
+        case "TaskCreate", "TaskUpdate", "TaskList", "TaskGet",
+             "TodoWrite", "TodoUpdate", "TodoRead": return .teal
         default: return .gray
         }
     }
@@ -123,6 +153,8 @@ struct ToolActivity: Identifiable {
         case "Edit", "Write": return .blue
         case "Read": return .green
         case "Glob", "Grep": return .purple
+        case "TaskCreate", "TaskUpdate", "TaskList", "TaskGet",
+             "TodoWrite", "TodoUpdate", "TodoRead": return .teal
         default: return .gray
         }
     }
@@ -158,6 +190,12 @@ struct ToolActivityInput {
     var pattern: String?
     var path: String?
     var raw: [String: Any] = [:]
+
+    // Task tool fields
+    var subject: String?
+    var taskId: String?
+    var taskStatus: String?
+    var activeForm: String?
 }
 
 struct ToolActivityResult {
@@ -169,6 +207,10 @@ struct ToolActivityResult {
     var fileCount: Int?
     var diffLines: [DiffLine]?
     var raw: Any?
+
+    // Task tool results
+    var taskResult: SessionTask?
+    var taskListResult: [SessionTask]?
 }
 
 struct UsageInfo {
@@ -232,5 +274,24 @@ struct PermissionRequest: Identifiable {
         let canonicalFile = URL(fileURLWithPath: filePath).standardized.path
 
         return !canonicalFile.hasPrefix(canonicalCwd) && canonicalFile != canonicalCwd.dropLast()
+    }
+}
+
+// MARK: - Session Task
+
+/// Represents a tracked task from Claude's TaskCreate/TaskUpdate tools.
+struct SessionTask: Identifiable {
+    let id: String                     // Task ID from the tool result (e.g. "1", "2")
+    var subject: String
+    var status: TaskStatus
+    var activeForm: String?            // Present-continuous label (e.g. "Running tests")
+    var description: String?
+    var blockedBy: [String]?           // IDs of tasks blocking this one
+
+    enum TaskStatus: String {
+        case pending
+        case in_progress
+        case completed
+        case deleted
     }
 }

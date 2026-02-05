@@ -38,6 +38,7 @@ struct SessionSnapshot: Codable {
     var sessionId: String?
     var totalCost: Double
     var lastUsage: UsageInfoData?
+    var tasks: [SessionTaskData]?   // Optional for backward compatibility
 }
 
 // MARK: - Terminal Session Snapshot
@@ -99,6 +100,12 @@ struct ToolActivityInputData: Codable {
     var pattern: String?
     var path: String?
     var rawJSON: String?
+
+    // Task tool fields
+    var subject: String?
+    var taskId: String?
+    var taskStatus: String?
+    var activeForm: String?
 }
 
 struct ToolActivityResultData: Codable {
@@ -110,6 +117,10 @@ struct ToolActivityResultData: Codable {
     var fileCount: Int?
     var diffLines: [DiffLineData]?
     var rawJSON: String?
+
+    // Task tool results
+    var taskResult: SessionTaskData?
+    var taskListResult: [SessionTaskData]?
 }
 
 struct DiffLineData: Codable {
@@ -128,6 +139,17 @@ struct UsageInfoData: Codable {
     var costUSD: Double
     var durationMs: Int
     var contextTokens: Int = 0
+}
+
+// MARK: - Session Task Data
+
+struct SessionTaskData: Codable {
+    let id: String
+    var subject: String
+    var status: String
+    var activeForm: String?
+    var description: String?
+    var blockedBy: [String]?
 }
 
 // MARK: - Default Settings

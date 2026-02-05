@@ -14,6 +14,7 @@ enum CommandPaletteAction: Identifiable {
     case reviewCode
     case runDoctor
     case editMemory
+    case openSkillsPanel
     case selectSession(UUID)
 
     var id: String {
@@ -29,6 +30,7 @@ enum CommandPaletteAction: Identifiable {
         case .reviewCode: "reviewCode"
         case .runDoctor: "runDoctor"
         case .editMemory: "editMemory"
+        case .openSkillsPanel: "openSkillsPanel"
         case .selectSession(let id): "session-\(id)"
         }
     }
@@ -93,6 +95,14 @@ struct CommandPaletteOverlay: View {
 
         // Claude slash commands — conditionally shown
         if case .claude(let session) = manager.selectedSession {
+            items.append(CommandPaletteItem(
+                id: "skills-panel", title: "Browse Skills",
+                subtitle: "Browse and run Claude Code skills",
+                icon: "wand.and.stars",
+                category: .quickActions, action: .openSkillsPanel,
+                shortcut: "\u{2318}\u{21e7}S"
+            ))
+
             // Init can be sent as a first message (no sessionId needed)
             items.append(CommandPaletteItem(
                 id: "init-project", title: "Initialize Project",
@@ -343,9 +353,23 @@ extension FocusedValues {
     }
 }
 
+// MARK: - FocusedValue for Skills Panel
+
+struct SkillsPanelToggleKey: FocusedValueKey {
+    typealias Value = Binding<Bool>
+}
+
+extension FocusedValues {
+    var skillsPanelToggle: Binding<Bool>? {
+        get { self[SkillsPanelToggleKey.self] }
+        set { self[SkillsPanelToggleKey.self] = newValue }
+    }
+}
+
 // MARK: - Notifications for cross-view communication
 
 extension Notification.Name {
     static let toggleDiffPanel = Notification.Name("strata.toggleDiffPanel")
     static let toggleSettings = Notification.Name("strata.toggleSettings")
+    static let toggleSkillsPanel = Notification.Name("strata.toggleSkillsPanel")
 }

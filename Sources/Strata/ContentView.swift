@@ -127,6 +127,8 @@ struct ContentView: View {
             if case .claude(let session) = manager.selectedSession {
                 session.send("/memory")
             }
+        case .openSkillsPanel:
+            NotificationCenter.default.post(name: .toggleSkillsPanel, object: nil)
         case .selectSession(let id):
             manager.select(id)
         }

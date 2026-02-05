@@ -7,6 +7,7 @@ struct SessionView: View {
     @State private var inputText: String = ""
     @State private var showDiffPanel: Bool = false
     @State private var showSettings: Bool = false
+    @State private var showSkills: Bool = false
     @FocusState private var inputFocused: Bool
     @State private var triggerInputFocus: Bool = false
     @State private var suggestionIndex: Int = 0
@@ -352,6 +353,21 @@ struct SessionView: View {
                 }
             }
 
+            // Skill suggestion chips
+            if !session.isResponding, !session.messages.isEmpty {
+                let suggested = session.suggestedSkills()
+                if !suggested.isEmpty {
+                    SkillSuggestionChips(suggestions: suggested) { skill in
+                        session.sendSkill(skill, arguments: "")
+                    }
+                }
+            }
+
+            // Task progress bar
+            if !session.tasks.isEmpty {
+                TaskProgressBar(tasks: Array(session.tasks.values))
+            }
+
             Divider()
 
             // Input bar
@@ -450,6 +466,14 @@ struct SessionView: View {
             ToolbarItem(placement: .primaryAction) {
                 HStack(spacing: 4) {
                     Button {
+                        session.scanSkills(force: true)
+                        showSkills.toggle()
+                    } label: {
+                        Image(systemName: "wand.and.stars")
+                    }
+                    .help("Skills Panel")
+
+                    Button {
                         showSettings.toggle()
                     } label: {
                         Image(systemName: "gearshape")
@@ -491,8 +515,23 @@ struct SessionView: View {
                 }
             )
         }
+        .sheet(isPresented: $showSkills) {
+            SkillsPanel(
+                skills: session.cachedSkills,
+                onInvoke: { skill, args in
+                    session.sendSkill(skill, arguments: args)
+                },
+                onInstall: { catalogSkill in
+                    try? session.installCatalogSkill(catalogSkill)
+                },
+                onUninstall: { catalogSkill in
+                    try? session.uninstallCatalogSkill(catalogSkill)
+                }
+            )
+        }
         .focusedSceneValue(\.diffPanelToggle, $showDiffPanel)
         .focusedSceneValue(\.settingsToggle, $showSettings)
+        .focusedSceneValue(\.skillsPanelToggle, $showSkills)
         .tint(session.settings.theme.accentColor.color)
         .onReceive(NotificationCenter.default.publisher(for: .toggleDiffPanel)) { _ in
             showDiffPanel.toggle()
@@ -500,8 +539,13 @@ struct SessionView: View {
         .onReceive(NotificationCenter.default.publisher(for: .toggleSettings)) { _ in
             showSettings.toggle()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .toggleSkillsPanel)) { _ in
+            session.scanSkills(force: true)
+            showSkills.toggle()
+        }
         .onAppear {
             inputFocused = true
+            session.scanSkills()
         }
     }
 
@@ -760,5 +804,78 @@ struct EmptySessionView: View {
             .controlSize(.large)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// MARK: - Task Progress Bar
+
+private struct TaskProgressBar: View {
+    let tasks: [SessionTask]
+
+    private var activeTasks: [SessionTask] {
+        tasks.filter { $0.status != .deleted }
+    }
+
+    private var completedCount: Int {
+        activeTasks.filter { $0.status == .completed }.count
+    }
+
+    private var inProgressTask: SessionTask? {
+        activeTasks.first { $0.status == .in_progress }
+    }
+
+    private var progress: Double {
+        guard !activeTasks.isEmpty else { return 0 }
+        return Double(completedCount) / Double(activeTasks.count)
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            // Progress bar
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(Color.primary.opacity(0.08))
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(Color.teal)
+                        .frame(width: geo.size.width * min(progress, 1.0))
+                        .animation(.easeInOut(duration: 0.3), value: progress)
+                }
+            }
+            .frame(height: 6)
+            .frame(maxWidth: 120)
+
+            // Count label
+            Text("\(completedCount)/\(activeTasks.count) tasks")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+
+            // Active task spinner
+            if let active = inProgressTask {
+                HStack(spacing: 4) {
+                    ProgressView()
+                        .controlSize(.mini)
+                    Text(active.activeForm ?? active.subject)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+
+            Spacer()
+
+            // Completion indicator
+            if completedCount == activeTasks.count && !activeTasks.isEmpty {
+                HStack(spacing: 4) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                    Text("All tasks complete")
+                        .font(.caption2)
+                        .foregroundStyle(.green)
+                }
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 4)
     }
 }

@@ -7,6 +7,7 @@ struct AppCommands: Commands {
     @FocusedValue(\.settingsToggle) var settingsToggle
     @FocusedValue(\.focusedModeToggle) var focusedModeToggle
     @FocusedValue(\.commandPaletteToggle) var commandPaletteToggle
+    @FocusedValue(\.skillsPanelToggle) var skillsPanelToggle
 
     var body: some Commands {
         // Replace the default New Window command
@@ -80,6 +81,12 @@ struct AppCommands: Commands {
                 settingsToggle?.wrappedValue.toggle()
             }
             .keyboardShortcut(",", modifiers: .command)
+            .disabled(manager.selectedSession == nil)
+
+            Button("Skills Panel") {
+                skillsPanelToggle?.wrappedValue.toggle()
+            }
+            .keyboardShortcut("s", modifiers: [.command, .shift])
             .disabled(manager.selectedSession == nil)
 
             Divider()

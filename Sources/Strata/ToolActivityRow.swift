@@ -93,6 +93,10 @@ struct ToolActivityRow: View {
         case "Read": return activity.result.fileContent != nil
         case "Glob", "Grep": return activity.result.filenames != nil
         case "Write": return activity.input.filePath != nil
+        case "TaskCreate", "TaskUpdate", "TaskGet":
+            return activity.result.taskResult != nil
+        case "TodoWrite", "TodoUpdate", "TaskList", "TodoRead":
+            return activity.result.taskListResult != nil
         default: return false
         }
     }
@@ -112,6 +116,10 @@ struct ToolActivityRow: View {
             searchDetail
         case "Write":
             writeDetail
+        case "TaskCreate", "TaskUpdate", "TaskGet":
+            taskDetail
+        case "TodoWrite", "TodoUpdate", "TaskList", "TodoRead":
+            taskListDetail
         default:
             EmptyView()
         }
@@ -227,6 +235,48 @@ struct ToolActivityRow: View {
         }
     }
 
+    // MARK: - Task Detail
+
+    private var taskDetail: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if let task = activity.result.taskResult {
+                HStack(spacing: 8) {
+                    TaskStatusBadge(status: task.status)
+                    Text(task.subject)
+                        .font(.system(.callout, design: .default))
+                        .fontWeight(.medium)
+                }
+                if let desc = task.description, !desc.isEmpty {
+                    Text(desc)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(3)
+                }
+            }
+        }
+    }
+
+    // MARK: - Task List Detail
+
+    private var taskListDetail: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if let tasks = activity.result.taskListResult {
+                ForEach(tasks) { task in
+                    HStack(spacing: 8) {
+                        TaskStatusBadge(status: task.status)
+                        Text(task.subject)
+                            .font(.system(.caption, design: .default))
+                            .lineLimit(1)
+                        Spacer()
+                        Text("#\(task.id)")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+            }
+        }
+    }
+
     // MARK: - Helpers
 
     private func codeBlock(_ text: String) -> some View {
@@ -241,5 +291,52 @@ struct ToolActivityRow: View {
             Color(nsColor: .controlBackgroundColor).opacity(0.5),
             in: RoundedRectangle(cornerRadius: 4)
         )
+    }
+}
+
+// MARK: - Task Status Badge
+
+private struct TaskStatusBadge: View {
+    let status: SessionTask.TaskStatus
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Image(systemName: iconName)
+                .font(.caption2)
+            Text(status.rawValue.replacingOccurrences(of: "_", with: " "))
+                .font(.caption2)
+                .fontWeight(.medium)
+        }
+        .foregroundStyle(foregroundColor)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(backgroundColor, in: Capsule())
+    }
+
+    private var iconName: String {
+        switch status {
+        case .pending: "circle"
+        case .in_progress: "circle.dotted.circle"
+        case .completed: "checkmark.circle.fill"
+        case .deleted: "trash.circle"
+        }
+    }
+
+    private var foregroundColor: Color {
+        switch status {
+        case .pending: .secondary
+        case .in_progress: .orange
+        case .completed: .green
+        case .deleted: .red
+        }
+    }
+
+    private var backgroundColor: Color {
+        switch status {
+        case .pending: Color.secondary.opacity(0.12)
+        case .in_progress: Color.orange.opacity(0.12)
+        case .completed: Color.green.opacity(0.12)
+        case .deleted: Color.red.opacity(0.12)
+        }
     }
 }

@@ -14,6 +14,7 @@ Strata wraps [Claude Code](https://docs.anthropic.com/en/docs/claude-code) in a 
 
 ## Features
 
+### Core
 - **Multi-session management** — Run multiple Claude conversations and terminal sessions side by side
 - **Streaming chat** — Live token streaming with markdown rendering, code blocks, and syntax hints
 - **Inline tool cards** — See Bash commands, file edits, reads, searches rendered as expandable cards in the conversation
@@ -21,14 +22,30 @@ Strata wraps [Claude Code](https://docs.anthropic.com/en/docs/claude-code) in a 
 - **Permission flow** — Approve or deny tool use (file writes, command execution) per invocation
 - **Permission modes** — Guided (ask first), Auto (accept edits), Plan Only (read-only)
 - **Built-in terminal** — Full terminal emulation via SwiftTerm, alongside your Claude sessions
-- **Focus mode** — Hide the sidebar for distraction-free conversation (Cmd+Shift+F)
-- **Smart input suggestions** — Ghost-text suggestions in the input field based on conversation context, accepted with Tab
 - **Session persistence** — Conversations survive app restarts, stored locally
-- **Customizable** — Model selection, accent colors, font sizes, density, notification sounds, custom system prompts
+
+### Skills
+- **Skills panel** — Browse and manage Claude Code skills via Cmd+Shift+S
+- **Multi-source catalog** — Curated skills from Anthropic, Vercel, Supabase, Expo, and Remotion
+- **skills.sh search** — Search 40,000+ skills with install counts, filtered to trusted sources
+- **One-click install** — Install skills to `~/.claude/skills/` directly from the catalog
+- **Skill invocation** — Run installed skills via `/skill-name` with argument support
+- **Smart suggestions** — Context-aware skill chips appear based on your conversation
+
+### Task Tracking
+- **Task list widget** — Live progress bar above the input showing task completion
+- **Inline task cards** — Expandable teal cards showing task status (pending, in progress, completed)
+- **Active task indicator** — Spinner with current task description while Claude works
+- **Automatic tracking** — Tasks created by Claude are tracked and persisted with your session
+
+### Productivity
 - **Command palette** — Quick access to all actions via Cmd+K with fuzzy search
 - **Context usage bar** — Live token count with color-coded progress toward the context limit
 - **Conversation compaction** — Summarize long conversations to reclaim context space
 - **Claude Code commands** — Native access to /init, /review, /doctor, /memory, and /clear
+- **Focus mode** — Hide the sidebar for distraction-free conversation (Cmd+Shift+F)
+- **Smart input suggestions** — Ghost-text suggestions in the input field based on conversation context, accepted with Tab
+- **Customizable** — Model selection, accent colors, font sizes, density, notification sounds, custom system prompts
 - **Dark / Light / Auto** appearance
 
 ---
@@ -158,10 +175,10 @@ Strata/
     ├── SessionSettings.swift         # Per-session config (model, theme)
     │
     ├── ClaudeRunner.swift            # Spawns & communicates with bridge process
-    ├── ChatMessage.swift             # Message model, tool activity structs
+    ├── ChatMessage.swift             # Message model, tool activity, task structs
     ├── FileChangeParser.swift        # Parses file changes, computes diffs
     │
-    ├── SessionView.swift             # Main chat UI, input bar, suggestions
+    ├── SessionView.swift             # Main chat UI, input bar, task progress
     ├── ChatView.swift                # Message list with bubbles
     ├── SidebarView.swift             # Session list, new session buttons
     ├── ToolActivityRow.swift         # Expandable tool invocation cards
@@ -171,6 +188,11 @@ Strata/
     ├── TerminalSessionView.swift     # Terminal view (SwiftTerm)
     ├── SessionSettingsPopover.swift   # Settings panel
     ├── PermissionRequestView.swift   # Tool permission approval modal
+    │
+    ├── Skill.swift                   # Skill model, parser, scanner
+    ├── SkillCatalog.swift            # Remote catalog (GitHub + skills.sh)
+    ├── SkillsPanel.swift             # Skills browser UI (Installed/Catalog)
+    ├── SkillSuggestionChips.swift    # Context-aware skill suggestions
     │
     ├── PersistenceManager.swift      # File I/O, debounced saves
     ├── Persistence+Codable.swift     # Codable models for persistence
@@ -189,6 +211,7 @@ Strata/
 | Cmd+W | Close current session |
 | Cmd+Shift+F | Toggle focus mode |
 | Cmd+Shift+D | Toggle diff inspector |
+| Cmd+Shift+S | Open skills panel |
 | Cmd+, | Session settings |
 | Ctrl+C | Cancel Claude response |
 | Tab | Accept input suggestion |
