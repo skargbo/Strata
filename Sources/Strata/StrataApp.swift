@@ -10,10 +10,11 @@ enum AppVersion {
 struct StrataApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @State private var manager = SessionManager()
+    @State private var scheduleManager = ScheduleManager()
 
     var body: some Scene {
         WindowGroup {
-            ContentView(manager: manager)
+            ContentView(manager: manager, scheduleManager: scheduleManager)
                 .preferredColorScheme(manager.appearanceMode.colorScheme)
                 .onChange(of: manager.appearanceMode, initial: true) { _, newMode in
                     // Resolve the NSAppearance for the selected mode

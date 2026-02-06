@@ -15,6 +15,7 @@ enum CommandPaletteAction: Identifiable {
     case runDoctor
     case editMemory
     case openSkillsPanel
+    case openSchedules
     case selectSession(UUID)
 
     var id: String {
@@ -31,6 +32,7 @@ enum CommandPaletteAction: Identifiable {
         case .runDoctor: "runDoctor"
         case .editMemory: "editMemory"
         case .openSkillsPanel: "openSkillsPanel"
+        case .openSchedules: "openSchedules"
         case .selectSession(let id): "session-\(id)"
         }
     }
@@ -90,6 +92,12 @@ struct CommandPaletteOverlay: View {
                 id: "settings", title: "Open Settings", subtitle: nil,
                 icon: "gearshape", category: .quickActions,
                 action: .openSettings, shortcut: "\u{2318},"
+            ),
+            CommandPaletteItem(
+                id: "schedules", title: "Scheduled Prompts",
+                subtitle: "Manage prompts that run on a schedule",
+                icon: "clock.badge", category: .quickActions,
+                action: .openSchedules, shortcut: "\u{2318}H"
             ),
         ]
 

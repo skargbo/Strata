@@ -9,6 +9,7 @@ struct AppCommands: Commands {
     @FocusedValue(\.commandPaletteToggle) var commandPaletteToggle
     @FocusedValue(\.skillsPanelToggle) var skillsPanelToggle
     @FocusedValue(\.memoryViewerToggle) var memoryViewerToggle
+    @FocusedValue(\.schedulesPanelToggle) var schedulesPanelToggle
 
     var body: some Commands {
         // Replace the default New Window command
@@ -95,6 +96,11 @@ struct AppCommands: Commands {
             }
             .keyboardShortcut("m", modifiers: [.command, .shift])
             .disabled(manager.selectedSession == nil)
+
+            Button("Scheduled Prompts") {
+                schedulesPanelToggle?.wrappedValue.toggle()
+            }
+            .keyboardShortcut("h", modifiers: .command)
 
             Divider()
 

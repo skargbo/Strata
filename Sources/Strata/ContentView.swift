@@ -2,10 +2,12 @@ import SwiftUI
 
 struct ContentView: View {
     @Bindable var manager: SessionManager
+    @Bindable var scheduleManager: ScheduleManager
     @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
     @State private var isFocusedMode: Bool = false
     @State private var preFocusVisibility: NavigationSplitViewVisibility = .automatic
     @State private var showCommandPalette: Bool = false
+    @State private var showSchedulesPanel: Bool = false
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
@@ -34,17 +36,30 @@ struct ContentView: View {
         .navigationSplitViewStyle(.balanced)
         .toolbar {
             ToolbarItem(placement: .automatic) {
-                Button {
-                    showCommandPalette = true
-                } label: {
-                    Image(systemName: "wrench.and.screwdriver")
+                HStack(spacing: 4) {
+                    Button {
+                        showSchedulesPanel = true
+                    } label: {
+                        Image(systemName: "clock.badge")
+                    }
+                    .help("Scheduled Prompts (⌘H)")
+
+                    Button {
+                        showCommandPalette = true
+                    } label: {
+                        Image(systemName: "wrench.and.screwdriver")
+                    }
+                    .help("Command Palette (⌘K)")
                 }
-                .help("Command Palette (⌘K)")
             }
+        }
+        .sheet(isPresented: $showSchedulesPanel) {
+            SchedulesPanel(manager: scheduleManager)
         }
         .frame(minWidth: 800, minHeight: 500)
         .focusedSceneValue(\.focusedModeToggle, $isFocusedMode)
         .focusedSceneValue(\.commandPaletteToggle, $showCommandPalette)
+        .focusedSceneValue(\.schedulesPanelToggle, $showSchedulesPanel)
         .onChange(of: isFocusedMode) { _, focused in
             withAnimation(.easeInOut(duration: 0.25)) {
                 if focused {
@@ -127,6 +142,8 @@ struct ContentView: View {
             NotificationCenter.default.post(name: .toggleMemoryViewer, object: nil)
         case .openSkillsPanel:
             NotificationCenter.default.post(name: .toggleSkillsPanel, object: nil)
+        case .openSchedules:
+            showSchedulesPanel = true
         case .selectSession(let id):
             manager.select(id)
         }
@@ -143,5 +160,18 @@ extension FocusedValues {
     var focusedModeToggle: Binding<Bool>? {
         get { self[FocusedModeToggleKey.self] }
         set { self[FocusedModeToggleKey.self] = newValue }
+    }
+}
+
+// MARK: - FocusedValue for Schedules Panel
+
+struct SchedulesPanelToggleKey: FocusedValueKey {
+    typealias Value = Binding<Bool>
+}
+
+extension FocusedValues {
+    var schedulesPanelToggle: Binding<Bool>? {
+        get { self[SchedulesPanelToggleKey.self] }
+        set { self[SchedulesPanelToggleKey.self] = newValue }
     }
 }
