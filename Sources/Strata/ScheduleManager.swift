@@ -203,11 +203,19 @@ final class ScheduleManager {
 
     // MARK: - Notifications
 
+    /// Check if we're running as a proper app bundle (not via swift run)
+    private var canUseNotifications: Bool {
+        Bundle.main.bundleIdentifier != nil
+    }
+
     private func requestNotificationPermission() {
+        guard canUseNotifications else { return }
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
     }
 
     private func sendNotification(for schedule: ScheduledPrompt, result: ScheduleResult) {
+        guard canUseNotifications else { return }
+
         let content = UNMutableNotificationContent()
         content.title = result.success ? "Scheduled Task Complete" : "Scheduled Task Failed"
         content.subtitle = schedule.name
