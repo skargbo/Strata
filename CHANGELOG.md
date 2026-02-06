@@ -2,6 +2,24 @@
 
 All notable changes to Strata are documented here.
 
+## [1.3.0] - 2026-02-05
+
+### Added
+- **Memory Viewer panel** (Cmd+Shift+M) for browsing and editing CLAUDE.md files
+- **Session folders/groups** for organizing sessions in the sidebar
+- **Context visualization** with expandable breakdown by category (conversation, tools, system prompt)
+- **Memory Timeline** inspector showing chronological history of file operations and commands
+- **Claude Opus 4.6** model support (latest flagship)
+- **Permission request queue** to handle rapid tool calls without losing requests
+
+### Fixed
+- Bridge crash handling with global error handlers for WebSearch and other tools
+- Permission requests no longer get lost when multiple tools request access quickly
+
+### Changed
+- Model selection now uses 2x2 grid layout for better visibility
+- Improved bridge termination error messages with exit codes
+
 ## [1.2.0] - 2025-02-05
 
 ### Added
