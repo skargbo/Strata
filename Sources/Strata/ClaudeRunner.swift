@@ -117,15 +117,29 @@ final class ClaudeRunner: @unchecked Sendable {
             }
         }
 
-        proc.terminationHandler = { [weak self] _ in
+        proc.terminationHandler = { [weak self] terminatedProc in
             DispatchQueue.main.async {
+                let exitCode = terminatedProc.terminationStatus
+                let reason = terminatedProc.terminationReason
+
                 self?.process = nil
                 self?.stdinPipe = nil
                 self?.expectedNonce = nil
                 self?.nonceValidated = false
+
                 if self?.isRunning == true {
                     self?.isRunning = false
-                    self?.onError?("Bridge process terminated unexpectedly.")
+
+                    // Provide more helpful error messages based on exit code
+                    var errorMessage = "Bridge process terminated unexpectedly"
+                    if reason == .uncaughtSignal {
+                        errorMessage += " (crashed)"
+                    } else if exitCode != 0 {
+                        errorMessage += " (exit code: \(exitCode))"
+                    }
+                    errorMessage += ". Try sending your message again."
+
+                    self?.onError?(errorMessage)
                 }
             }
         }

@@ -7,6 +7,33 @@ import { createInterface } from "readline";
 import { randomUUID } from "crypto";
 import { existsSync, statSync, realpathSync } from "fs";
 
+// --- Global error handlers to prevent crashes ---
+process.on("uncaughtException", (err) => {
+  try {
+    process.stdout.write(
+      JSON.stringify({
+        type: "error",
+        message: `Uncaught exception: ${err.message || String(err)}`,
+      }) + "\n"
+    );
+  } catch {}
+  // Don't exit - try to keep the bridge alive
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+  try {
+    const message =
+      reason instanceof Error ? reason.message : String(reason || "Unknown");
+    process.stdout.write(
+      JSON.stringify({
+        type: "error",
+        message: `Unhandled rejection: ${message}`,
+      }) + "\n"
+    );
+  } catch {}
+  // Don't exit - try to keep the bridge alive
+});
+
 // --- State ---
 let currentQuery = null;
 const pendingPermissions = new Map(); // requestId -> { resolve, originalInput }

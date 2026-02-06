@@ -213,3 +213,29 @@ extension SessionTask {
         )
     }
 }
+
+// MARK: - MemoryEvent <-> MemoryEventData
+
+extension MemoryEvent {
+    func toData() -> MemoryEventData {
+        MemoryEventData(
+            id: id,
+            timestamp: timestamp,
+            type: type.rawValue,
+            title: title,
+            detail: detail,
+            filePath: filePath
+        )
+    }
+
+    static func from(_ data: MemoryEventData) -> MemoryEvent {
+        MemoryEvent(
+            id: data.id,
+            timestamp: data.timestamp,
+            type: MemoryEventType(rawValue: data.type) ?? .fileRead,
+            title: data.title,
+            detail: data.detail,
+            filePath: data.filePath
+        )
+    }
+}

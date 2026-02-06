@@ -9,6 +9,7 @@ struct SessionView: View {
     @State private var showSettings: Bool = false
     @State private var showSkills: Bool = false
     @State private var showMemoryViewer: Bool = false
+    @State private var showMemoryTimeline: Bool = false
     @FocusState private var inputFocused: Bool
     @State private var triggerInputFocus: Bool = false
     @State private var suggestionIndex: Int = 0
@@ -314,6 +315,8 @@ struct SessionView: View {
                             usagePercent: session.contextUsagePercent,
                             isCompacting: session.isCompacting,
                             canCompact: session.sessionId != nil && !session.isResponding,
+                            contextBreakdown: session.contextBreakdown,
+                            cacheReadTokens: usage.cacheReadTokens,
                             onCompact: { focus in
                                 session.compact(focusInstructions: focus)
                             }
@@ -463,9 +466,23 @@ struct SessionView: View {
             )
             .inspectorColumnWidth(min: 280, ideal: 380, max: 550)
         }
+        .inspector(isPresented: $showMemoryTimeline) {
+            MemoryTimelinePanel(
+                memoryEvents: session.memoryEvents,
+                isPresented: $showMemoryTimeline
+            )
+            .inspectorColumnWidth(min: 280, ideal: 340, max: 450)
+        }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 HStack(spacing: 4) {
+                    Button {
+                        showMemoryTimeline.toggle()
+                    } label: {
+                        Image(systemName: "clock.arrow.circlepath")
+                    }
+                    .help("Memory Timeline")
+
                     Button {
                         showMemoryViewer.toggle()
                     } label: {
@@ -691,9 +708,12 @@ private struct ContextUsageBar: View {
     let usagePercent: Double
     let isCompacting: Bool
     let canCompact: Bool
+    let contextBreakdown: ContextBreakdown
+    let cacheReadTokens: Int
     let onCompact: (String?) -> Void
 
     @State private var showCompactPopover = false
+    @State private var showBreakdownPopover = false
     @State private var compactFocus = ""
 
     private var barColor: Color {
@@ -704,21 +724,43 @@ private struct ContextUsageBar: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(Color.primary.opacity(0.08))
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(barColor)
-                        .frame(width: geo.size.width * min(usagePercent, 1.0))
+            // Clickable bar to show breakdown
+            Button {
+                showBreakdownPopover.toggle()
+            } label: {
+                HStack(spacing: 8) {
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(Color.primary.opacity(0.08))
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(barColor)
+                                .frame(width: geo.size.width * min(usagePercent, 1.0))
+                        }
+                    }
+                    .frame(height: 6)
+                    .frame(maxWidth: 120)
+
+                    HStack(spacing: 4) {
+                        Text("\(contextTokens.formatted()) / \(maxTokens.formatted()) tokens (\(Int(usagePercent * 100))%)")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 8, weight: .semibold))
+                            .foregroundStyle(.tertiary)
+                    }
                 }
             }
-            .frame(height: 6)
-            .frame(maxWidth: 120)
-
-            Text("\(contextTokens.formatted()) / \(maxTokens.formatted()) tokens (\(Int(usagePercent * 100))%)")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+            .buttonStyle(.plain)
+            .popover(isPresented: $showBreakdownPopover) {
+                ContextBreakdownView(
+                    breakdown: contextBreakdown,
+                    totalTokens: contextTokens,
+                    maxTokens: maxTokens,
+                    cacheReadTokens: cacheReadTokens
+                )
+            }
 
             Spacer()
 

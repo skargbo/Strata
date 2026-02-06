@@ -227,6 +227,95 @@ struct UsageInfo {
     }
 }
 
+// MARK: - Context Breakdown
+
+/// Breakdown of context token usage by source
+struct ContextBreakdown {
+    var conversationTokens: Int = 0
+    var toolResultTokens: Int = 0
+    var systemPromptTokens: Int = 0
+    var filesInContext: [FileTokenInfo] = []
+    var cacheTokens: Int = 0
+
+    struct FileTokenInfo: Identifiable {
+        let id = UUID()
+        let path: String
+        let tokens: Int
+        let timestamp: Date
+    }
+
+    var totalEstimated: Int {
+        conversationTokens + toolResultTokens + systemPromptTokens
+    }
+}
+
+// MARK: - Memory Event
+
+/// Represents a significant event in the session's memory/context
+struct MemoryEvent: Identifiable {
+    let id: UUID
+    let timestamp: Date
+    let type: MemoryEventType
+    let title: String
+    let detail: String?
+    let filePath: String?
+
+    enum MemoryEventType: String {
+        case fileRead
+        case fileEdited
+        case fileCreated
+        case commandExecuted
+        case taskCreated
+        case taskCompleted
+        case searchPerformed
+
+        var icon: String {
+            switch self {
+            case .fileRead: return "doc.text"
+            case .fileEdited: return "pencil"
+            case .fileCreated: return "doc.badge.plus"
+            case .commandExecuted: return "terminal"
+            case .taskCreated: return "checklist"
+            case .taskCompleted: return "checkmark.circle"
+            case .searchPerformed: return "magnifyingglass"
+            }
+        }
+
+        var label: String {
+            switch self {
+            case .fileRead: return "Read file"
+            case .fileEdited: return "Edited file"
+            case .fileCreated: return "Created file"
+            case .commandExecuted: return "Ran command"
+            case .taskCreated: return "Created task"
+            case .taskCompleted: return "Completed task"
+            case .searchPerformed: return "Searched"
+            }
+        }
+
+        var color: Color {
+            switch self {
+            case .fileRead: return .blue
+            case .fileEdited: return .orange
+            case .fileCreated: return .green
+            case .commandExecuted: return .purple
+            case .taskCreated: return .teal
+            case .taskCompleted: return .green
+            case .searchPerformed: return .gray
+            }
+        }
+    }
+
+    init(id: UUID = UUID(), timestamp: Date = Date(), type: MemoryEventType, title: String, detail: String? = nil, filePath: String? = nil) {
+        self.id = id
+        self.timestamp = timestamp
+        self.type = type
+        self.title = title
+        self.detail = detail
+        self.filePath = filePath
+    }
+}
+
 /// A permission request from the SDK, asking the user to allow/deny a tool use.
 struct PermissionRequest: Identifiable {
     let id: String                    // requestId from the bridge

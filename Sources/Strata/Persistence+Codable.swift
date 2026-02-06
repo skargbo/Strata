@@ -49,7 +49,8 @@ struct SessionSnapshot: Codable {
     var sessionId: String?
     var totalCost: Double
     var lastUsage: UsageInfoData?
-    var tasks: [SessionTaskData]?   // Optional for backward compatibility
+    var tasks: [SessionTaskData]?           // Optional for backward compatibility
+    var memoryEvents: [MemoryEventData]?    // Optional for backward compatibility
 }
 
 // MARK: - Terminal Session Snapshot
@@ -161,6 +162,34 @@ struct SessionTaskData: Codable {
     var activeForm: String?
     var description: String?
     var blockedBy: [String]?
+}
+
+// MARK: - Memory Event Data
+
+struct MemoryEventData: Codable {
+    let id: UUID
+    let timestamp: Date
+    let type: String
+    let title: String
+    var detail: String?
+    var filePath: String?
+}
+
+// MARK: - Context Breakdown Data
+
+struct ContextBreakdownData: Codable {
+    var conversationTokens: Int
+    var toolResultTokens: Int
+    var systemPromptTokens: Int
+    var filesInContext: [FileTokenInfoData]
+    var cacheTokens: Int
+
+    struct FileTokenInfoData: Codable {
+        let id: UUID
+        let path: String
+        let tokens: Int
+        let timestamp: Date
+    }
 }
 
 // MARK: - Default Settings

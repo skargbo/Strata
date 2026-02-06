@@ -35,6 +35,11 @@ final class Session: Identifiable {
     // Task tracking
     var tasks: [String: SessionTask] = [:]
 
+    // Memory & context tracking
+    var memoryEvents: [MemoryEvent] = []
+    var contextBreakdown = ContextBreakdown()
+    var filesRead: [String: Int] = [:]  // path -> estimated tokens
+
     var contextUsagePercent: Double {
         guard contextTokens > 0 else { return 0 }
         return Double(contextTokens) / Double(settings.model.maxContextTokens)
@@ -94,6 +99,9 @@ final class Session: Identifiable {
                 self.tasks[task.id] = task
             }
         }
+        if let eventData = snapshot.memoryEvents {
+            self.memoryEvents = eventData.map { MemoryEvent.from($0) }
+        }
         setupCallbacks()
     }
 
@@ -108,7 +116,8 @@ final class Session: Identifiable {
             sessionId: sessionId,
             totalCost: totalCost,
             lastUsage: lastUsage?.toData(),
-            tasks: tasks.values.map { $0.toData() }
+            tasks: tasks.values.map { $0.toData() },
+            memoryEvents: memoryEvents.isEmpty ? nil : memoryEvents.map { $0.toData() }
         )
     }
 
@@ -207,6 +216,9 @@ final class Session: Identifiable {
         lastUsage = nil
         totalCost = 0
         tasks.removeAll()
+        memoryEvents.removeAll()
+        contextBreakdown = ContextBreakdown()
+        filesRead.removeAll()
     }
 
     /// Compact the conversation to free context window space.
@@ -356,6 +368,9 @@ final class Session: Identifiable {
                 break
             }
 
+            // Track memory events and context breakdown
+            self.trackMemoryEvent(from: activity)
+
             self.needsNewAssistantMessage = true
             self.onDataChanged?()
         }
@@ -421,6 +436,152 @@ final class Session: Identifiable {
         // after the assistant placeholder.
         if let index = messages.lastIndex(where: { $0.role == .assistant }) {
             messages[index].text = text
+        }
+    }
+
+    // MARK: - Memory & Context Tracking
+
+    private func trackMemoryEvent(from activity: ToolActivity) {
+        let now = Date()
+
+        switch activity.toolName {
+        case "Read":
+            guard let filePath = activity.input.filePath else { return }
+            let fileName = (filePath as NSString).lastPathComponent
+
+            // Estimate tokens from content length
+            let contentLength = activity.result.fileContent?.count ?? 0
+            let estimatedTokens = max(contentLength / 4, 1)
+            filesRead[filePath] = estimatedTokens
+
+            // Update context breakdown
+            contextBreakdown.filesInContext.append(ContextBreakdown.FileTokenInfo(
+                path: filePath,
+                tokens: estimatedTokens,
+                timestamp: now
+            ))
+            contextBreakdown.toolResultTokens += estimatedTokens
+
+            // Create memory event
+            let preview = activity.result.fileContent?.prefix(100).description
+            memoryEvents.append(MemoryEvent(
+                timestamp: now,
+                type: .fileRead,
+                title: fileName,
+                detail: preview,
+                filePath: filePath
+            ))
+
+        case "Edit":
+            guard let filePath = activity.input.filePath else { return }
+            let fileName = (filePath as NSString).lastPathComponent
+
+            // Count diff lines for detail
+            let adds = activity.result.diffLines?.filter { $0.kind == .addition }.count ?? 0
+            let removes = activity.result.diffLines?.filter { $0.kind == .removal }.count ?? 0
+            let detail = adds > 0 || removes > 0
+                ? "+\(adds) lines, -\(removes) lines"
+                : nil
+
+            memoryEvents.append(MemoryEvent(
+                timestamp: now,
+                type: .fileEdited,
+                title: fileName,
+                detail: detail,
+                filePath: filePath
+            ))
+
+        case "Write":
+            guard let filePath = activity.input.filePath else { return }
+            let fileName = (filePath as NSString).lastPathComponent
+            let contentLength = activity.input.content?.count ?? 0
+
+            memoryEvents.append(MemoryEvent(
+                timestamp: now,
+                type: .fileCreated,
+                title: fileName,
+                detail: "\(contentLength) characters",
+                filePath: filePath
+            ))
+
+        case "Bash":
+            let command = activity.input.command ?? "command"
+            let shortCommand = command.count > 60 ? String(command.prefix(57)) + "..." : command
+
+            // Determine result detail
+            var detail: String?
+            if activity.result.interrupted {
+                detail = "Interrupted"
+            } else if let stderr = activity.result.stderr, !stderr.isEmpty {
+                detail = "Error: " + String(stderr.prefix(50))
+            } else if let stdout = activity.result.stdout {
+                let firstLine = stdout.split(separator: "\n").first.map(String.init) ?? ""
+                if !firstLine.isEmpty {
+                    detail = firstLine.count > 50 ? String(firstLine.prefix(47)) + "..." : firstLine
+                }
+            }
+
+            // Estimate tokens from output
+            let outputLength = (activity.result.stdout?.count ?? 0) + (activity.result.stderr?.count ?? 0)
+            contextBreakdown.toolResultTokens += outputLength / 4
+
+            memoryEvents.append(MemoryEvent(
+                timestamp: now,
+                type: .commandExecuted,
+                title: shortCommand,
+                detail: detail,
+                filePath: nil
+            ))
+
+        case "Glob", "Grep":
+            let pattern = activity.input.pattern ?? "pattern"
+            let count = activity.result.fileCount ?? 0
+            let detail = "\(count) match\(count == 1 ? "" : "es")"
+
+            memoryEvents.append(MemoryEvent(
+                timestamp: now,
+                type: .searchPerformed,
+                title: pattern,
+                detail: detail,
+                filePath: nil
+            ))
+
+        case "TaskCreate":
+            let subject = activity.input.subject ?? activity.result.taskResult?.subject ?? "task"
+            memoryEvents.append(MemoryEvent(
+                timestamp: now,
+                type: .taskCreated,
+                title: subject,
+                detail: nil,
+                filePath: nil
+            ))
+
+        case "TaskUpdate":
+            if activity.input.taskStatus == "completed" || activity.result.taskResult?.status == .completed {
+                let subject = activity.result.taskResult?.subject ?? "Task #\(activity.input.taskId ?? "?")"
+                memoryEvents.append(MemoryEvent(
+                    timestamp: now,
+                    type: .taskCompleted,
+                    title: subject,
+                    detail: nil,
+                    filePath: nil
+                ))
+            }
+
+        default:
+            break
+        }
+
+        // Estimate conversation tokens based on message count
+        let conversationCharCount = messages
+            .filter { $0.role == .user || $0.role == .assistant }
+            .map(\.text.count)
+            .reduce(0, +)
+        contextBreakdown.conversationTokens = conversationCharCount / 4
+
+        // Estimate system prompt tokens
+        if !settings.customSystemPrompt.isEmpty {
+            contextBreakdown.systemPromptTokens = settings.customSystemPrompt.count / 4
         }
     }
 }
