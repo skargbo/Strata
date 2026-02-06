@@ -2,6 +2,21 @@
 
 All notable changes to Strata are documented here.
 
+## [1.4.0] - 2026-02-05
+
+### Added
+- **Scheduled Prompts** (Cmd+H) for automating recurring Claude tasks
+- Schedule prompts to run daily, weekdays, weekly, or at custom intervals
+- Scheduled runs create real sessions in a "Scheduled Runs" sidebar group
+- Configurable permission mode per schedule (auto-accept edits or full autonomy)
+- Session reuse option to continue conversation or create fresh sessions
+- Warning when high-frequency schedules create many sessions
+- macOS notifications when scheduled tasks complete (when running as app bundle)
+
+### Changed
+- Improved schedule editor UI with segmented frequency picker
+- Better time picker layout
+
 ## [1.3.0] - 2026-02-05
 
 ### Added
