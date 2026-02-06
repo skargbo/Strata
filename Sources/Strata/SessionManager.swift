@@ -4,6 +4,8 @@ import Foundation
 @Observable
 final class SessionManager {
     var sessions: [AnySession] = []
+    var groups: [SessionGroup] = []
+    var sessionGroupMap: [UUID: UUID] = [:]  // sessionId -> groupId
     var selectedSessionID: UUID?
 
     var selectedSession: AnySession? {
@@ -34,6 +36,12 @@ final class SessionManager {
     private func restoreSessions() {
         guard let manifest = persistence.loadManifest() else { return }
 
+        // Restore groups
+        if let groupsData = manifest.groups {
+            groups = groupsData.map { SessionGroup(from: $0) }
+        }
+
+        // Restore sessions and group assignments
         for entry in manifest.sessionEntries {
             switch entry.type {
             case .claude:
@@ -41,11 +49,17 @@ final class SessionManager {
                     let session = Session(restoring: snapshot)
                     wireDataChanged(session)
                     sessions.append(.claude(session))
+                    if let groupId = entry.groupId {
+                        sessionGroupMap[entry.id] = groupId
+                    }
                 }
             case .terminal:
                 if let snapshot = persistence.loadTerminalSession(id: entry.id) {
                     let session = TerminalSession(restoring: snapshot)
                     sessions.append(.terminal(session))
+                    if let groupId = entry.groupId {
+                        sessionGroupMap[entry.id] = groupId
+                    }
                 }
             }
         }
@@ -106,6 +120,54 @@ final class SessionManager {
         selectedSessionID = id
     }
 
+    // MARK: - Session Groups
+
+    @discardableResult
+    func createGroup(name: String) -> SessionGroup {
+        let order = groups.map(\.order).max().map { $0 + 1 } ?? 0
+        let group = SessionGroup(name: name, order: order)
+        groups.append(group)
+        saveManifest()
+        return group
+    }
+
+    func deleteGroup(_ group: SessionGroup) {
+        // Move all sessions in this group to ungrouped
+        var map = sessionGroupMap
+        for (sessionId, groupId) in map where groupId == group.id {
+            map.removeValue(forKey: sessionId)
+        }
+        sessionGroupMap = map
+        groups.removeAll { $0.id == group.id }
+        saveManifest()
+    }
+
+    func renameGroup(_ group: SessionGroup, to name: String) {
+        group.name = name
+        saveManifest()
+    }
+
+    func moveSession(_ session: AnySession, to group: SessionGroup?) {
+        // Use full reassignment to ensure @Observable triggers view updates
+        var map = sessionGroupMap
+        if let group = group {
+            map[session.id] = group.id
+        } else {
+            map.removeValue(forKey: session.id)
+        }
+        sessionGroupMap = map
+        saveManifest()
+    }
+
+    func sessionsInGroup(_ groupId: UUID?) -> [AnySession] {
+        if let groupId = groupId {
+            return sessions.filter { sessionGroupMap[$0.id] == groupId }
+        } else {
+            // Ungrouped sessions
+            return sessions.filter { sessionGroupMap[$0.id] == nil }
+        }
+    }
+
     // MARK: - Persistence
 
     /// Save everything — called on app quit.
@@ -126,16 +188,20 @@ final class SessionManager {
         }
     }
 
-    private func saveManifest() {
+    func saveManifest() {
         let manifest = SessionManifest(
+            groups: groups.isEmpty ? nil : groups.map { $0.toData() },
             sessionEntries: sessions.map { session in
+                let groupId = sessionGroupMap[session.id]
                 switch session {
                 case .claude(let s):
                     return .init(id: s.id, type: .claude, name: s.name,
-                                 createdAt: s.createdAt, workingDirectory: s.workingDirectory)
+                                 createdAt: s.createdAt, workingDirectory: s.workingDirectory,
+                                 groupId: groupId)
                 case .terminal(let t):
                     return .init(id: t.id, type: .terminal, name: t.name,
-                                 createdAt: t.createdAt, workingDirectory: t.workingDirectory)
+                                 createdAt: t.createdAt, workingDirectory: t.workingDirectory,
+                                 groupId: groupId)
                 }
             },
             selectedSessionID: selectedSessionID

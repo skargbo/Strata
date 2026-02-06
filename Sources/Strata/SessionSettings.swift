@@ -12,7 +12,7 @@ final class SessionSettings {
     var toolCardsDefaultExpanded: Bool = false
     var soundNotifications: Bool = false
     var notificationSound: NotificationSound = .glass
-    var model: ClaudeModel = .sonnet
+    var model: ClaudeModel = .sonnet45
     var customSystemPrompt: String = ""
     var theme: SessionTheme = SessionTheme()
 
@@ -36,7 +36,7 @@ final class SessionSettings {
         self.toolCardsDefaultExpanded = data.toolCardsDefaultExpanded
         self.soundNotifications = data.soundNotifications
         self.notificationSound = NotificationSound(rawValue: data.notificationSound) ?? .glass
-        self.model = ClaudeModel(rawValue: data.model) ?? .sonnet
+        self.model = ClaudeModel(rawValue: data.model) ?? .sonnet45
         self.customSystemPrompt = data.customSystemPrompt
         self.theme = SessionTheme(
             accentColor: SessionTheme.AccentColor(rawValue: data.theme.accentColor) ?? .orange,
@@ -67,33 +67,37 @@ final class SessionSettings {
 // MARK: - Model Selection
 
 enum ClaudeModel: String, CaseIterable, Identifiable {
-    case sonnet = "claude-sonnet-4-5-20250929"
-    case opus = "claude-opus-4-20250514"
-    case haiku = "claude-haiku-3-5-20241022"
+    case opus46 = "claude-opus-4-6"
+    case sonnet45 = "claude-sonnet-4-5-20250929"
+    case haiku45 = "claude-haiku-4-5-20251001"
+    case opus45 = "claude-opus-4-5-20251101"
 
     var id: String { rawValue }
 
     var displayName: String {
         switch self {
-        case .sonnet: "Claude Sonnet 4.5"
-        case .opus: "Claude Opus 4"
-        case .haiku: "Claude Haiku 3.5"
+        case .opus46: "Claude Opus 4.6"
+        case .sonnet45: "Claude Sonnet 4.5"
+        case .haiku45: "Claude Haiku 4.5"
+        case .opus45: "Claude Opus 4.5"
         }
     }
 
     var shortName: String {
         switch self {
-        case .sonnet: "Sonnet"
-        case .opus: "Opus"
-        case .haiku: "Haiku"
+        case .opus46: "Opus 4.6"
+        case .sonnet45: "Sonnet 4.5"
+        case .haiku45: "Haiku 4.5"
+        case .opus45: "Opus 4.5"
         }
     }
 
     var maxContextTokens: Int {
         switch self {
-        case .sonnet: 200_000
-        case .opus:   200_000
-        case .haiku:  200_000
+        case .opus46:   200_000
+        case .sonnet45: 200_000
+        case .haiku45:  200_000
+        case .opus45:   200_000
         }
     }
 }

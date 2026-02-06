@@ -4,7 +4,8 @@ import Foundation
 
 /// Lightweight index of all sessions. Stored as `manifest.json`.
 struct SessionManifest: Codable {
-    var version: Int = 1
+    var version: Int = 2
+    var groups: [SessionGroupData]?  // Optional for backward compatibility
     var sessionEntries: [SessionEntry]
     var selectedSessionID: UUID?
 
@@ -14,12 +15,22 @@ struct SessionManifest: Codable {
         let name: String
         let createdAt: Date
         let workingDirectory: String
+        var groupId: UUID?  // nil = ungrouped
     }
 
     enum SessionType: String, Codable {
         case claude
         case terminal
     }
+}
+
+// MARK: - Session Group Data
+
+struct SessionGroupData: Codable, Identifiable {
+    var id: UUID
+    var name: String
+    var isExpanded: Bool
+    var order: Int
 }
 
 // MARK: - Claude Session Snapshot

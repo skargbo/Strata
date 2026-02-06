@@ -154,22 +154,31 @@ struct SessionSettingsPanel: View {
 
             Divider()
 
-            HStack(spacing: 16) {
-                modelCard(
-                    model: .sonnet,
-                    description: "Best balance of speed and capability",
-                    recommended: true
-                )
-                modelCard(
-                    model: .opus,
-                    description: "Most capable for complex tasks",
-                    recommended: false
-                )
-                modelCard(
-                    model: .haiku,
-                    description: "Fastest responses, lower cost",
-                    recommended: false
-                )
+            VStack(spacing: 12) {
+                HStack(spacing: 12) {
+                    modelCard(
+                        model: .opus46,
+                        description: "Most intelligent, best for agents",
+                        recommended: true
+                    )
+                    modelCard(
+                        model: .sonnet45,
+                        description: "Best balance of speed and capability",
+                        recommended: false
+                    )
+                }
+                HStack(spacing: 12) {
+                    modelCard(
+                        model: .haiku45,
+                        description: "Fastest responses, lower cost",
+                        recommended: false
+                    )
+                    modelCard(
+                        model: .opus45,
+                        description: "Previous flagship model",
+                        recommended: false
+                    )
+                }
             }
         }
     }

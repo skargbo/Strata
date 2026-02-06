@@ -2,27 +2,62 @@ import SwiftUI
 
 struct SidebarView: View {
     @Bindable var manager: SessionManager
+    @State private var showNewGroupAlert = false
+    @State private var newGroupName = ""
+
+    private var sortedGroups: [SessionGroup] {
+        manager.groups.sorted(by: { $0.order < $1.order })
+    }
+
+    private var ungroupedSessions: [AnySession] {
+        manager.sessions.filter { manager.sessionGroupMap[$0.id] == nil }
+    }
 
     var body: some View {
         List(selection: $manager.selectedSessionID) {
-            Section("Sessions") {
-                ForEach(manager.sessions) { session in
-                    SessionRow(session: session)
-                        .tag(session.id)
-                        .contextMenu {
-                            Button("Close Session") {
-                                manager.closeSession(session)
-                            }
-                        }
-                }
-                .onDelete { indexSet in
-                    let sessionsToDelete = indexSet.map { manager.sessions[$0] }
-                    for session in sessionsToDelete {
-                        manager.closeSession(session)
+            // Groups with their sessions
+            ForEach(sortedGroups) { group in
+                DisclosureGroup(isExpanded: Binding(
+                    get: { group.isExpanded },
+                    set: { group.isExpanded = $0; manager.saveManifest() }
+                )) {
+                    let groupSessions = manager.sessions.filter { manager.sessionGroupMap[$0.id] == group.id }
+                    ForEach(groupSessions) { session in
+                        sessionRow(session)
                     }
+                } label: {
+                    GroupHeader(group: group, manager: manager)
+                }
+                .dropDestination(for: String.self) { items, _ in
+                    for item in items {
+                        if let sessionId = UUID(uuidString: item),
+                           let session = manager.sessions.first(where: { $0.id == sessionId }) {
+                            manager.moveSession(session, to: group)
+                        }
+                    }
+                    return true
+                }
+            }
+
+            // Ungrouped sessions
+            if !ungroupedSessions.isEmpty {
+                Section("Sessions") {
+                    ForEach(ungroupedSessions) { session in
+                        sessionRow(session)
+                    }
+                }
+                .dropDestination(for: String.self) { items, _ in
+                    for item in items {
+                        if let sessionId = UUID(uuidString: item),
+                           let session = manager.sessions.first(where: { $0.id == sessionId }) {
+                            manager.moveSession(session, to: nil)
+                        }
+                    }
+                    return true
                 }
             }
         }
+        .id(manager.sessionGroupMap.count)  // Force list refresh when groupings change
         .listStyle(.sidebar)
         .frame(minWidth: 200)
         .safeAreaInset(edge: .bottom) {
@@ -31,13 +66,102 @@ struct SidebarView: View {
                     manager.newSession()
                 }
 
-                SidebarNewSessionButton(label: "New Terminal", icon: "terminal.fill", style: .secondary) {
-                    manager.newTerminalSession()
+                HStack(spacing: 6) {
+                    SidebarNewSessionButton(label: "Terminal", icon: "terminal.fill", style: .secondary) {
+                        manager.newTerminalSession()
+                    }
+
+                    SidebarNewSessionButton(label: "Group", icon: "folder.badge.plus", style: .secondary) {
+                        newGroupName = ""
+                        showNewGroupAlert = true
+                    }
                 }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
             .background(.bar)
+        }
+        .alert("New Group", isPresented: $showNewGroupAlert) {
+            TextField("Group name", text: $newGroupName)
+            Button("Cancel", role: .cancel) {}
+            Button("Create") {
+                if !newGroupName.trimmingCharacters(in: .whitespaces).isEmpty {
+                    manager.createGroup(name: newGroupName)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func sessionRow(_ session: AnySession) -> some View {
+        SessionRow(session: session)
+            .tag(session.id)
+            .draggable(session.id.uuidString)
+            .contextMenu {
+                if !manager.groups.isEmpty {
+                    Menu("Move to Group") {
+                        Button("Ungrouped") {
+                            manager.moveSession(session, to: nil)
+                        }
+                        Divider()
+                        ForEach(manager.groups) { group in
+                            Button(group.name) {
+                                manager.moveSession(session, to: group)
+                            }
+                        }
+                    }
+                    Divider()
+                }
+                Button("Close Session", role: .destructive) {
+                    manager.closeSession(session)
+                }
+            }
+    }
+}
+
+// MARK: - Group Header
+
+private struct GroupHeader: View {
+    let group: SessionGroup
+    let manager: SessionManager
+    @State private var isEditing = false
+    @State private var editName = ""
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "folder.fill")
+                .foregroundStyle(.orange)
+                .font(.system(size: 12))
+
+            if isEditing {
+                TextField("", text: $editName)
+                    .textFieldStyle(.plain)
+                    .onSubmit {
+                        if !editName.trimmingCharacters(in: .whitespaces).isEmpty {
+                            manager.renameGroup(group, to: editName)
+                        }
+                        isEditing = false
+                    }
+            } else {
+                Text(group.name)
+                    .fontWeight(.medium)
+            }
+
+            Spacer()
+
+            Text("\(manager.sessions.filter { manager.sessionGroupMap[$0.id] == group.id }.count)")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+        }
+        .contextMenu {
+            Button("Rename") {
+                editName = group.name
+                isEditing = true
+            }
+            Divider()
+            Button("Delete Group", role: .destructive) {
+                manager.deleteGroup(group)
+            }
         }
     }
 }
