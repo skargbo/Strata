@@ -5,6 +5,7 @@ struct PermissionRequestView: View {
     let request: PermissionRequest
     let onAllow: () -> Void
     let onDeny: () -> Void
+    var queueCount: Int = 0  // How many more requests are queued after this one
 
     var body: some View {
         VStack(spacing: 0) {
@@ -17,8 +18,18 @@ struct PermissionRequestView: View {
                     .background(iconColor.opacity(0.15), in: RoundedRectangle(cornerRadius: 8))
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Permission Request")
-                        .font(.headline)
+                    HStack(spacing: 6) {
+                        Text("Permission Request")
+                            .font(.headline)
+                        if queueCount > 0 {
+                            Text("+\(queueCount) more")
+                                .font(.caption)
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.orange, in: Capsule())
+                        }
+                    }
                     Text("Claude wants to use **\(request.toolName)**")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)

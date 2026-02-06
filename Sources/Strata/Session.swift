@@ -45,8 +45,12 @@ final class Session: Identifiable {
         return Double(contextTokens) / Double(settings.model.maxContextTokens)
     }
 
-    // Permission state
-    var pendingPermission: PermissionRequest?
+    // Permission state - queue to handle multiple rapid requests
+    var pendingPermissions: [PermissionRequest] = []
+
+    var currentPermission: PermissionRequest? {
+        pendingPermissions.first
+    }
 
     // The current streaming response (built up token by token)
     var currentResponse: String = ""
@@ -216,6 +220,7 @@ final class Session: Identifiable {
         lastUsage = nil
         totalCost = 0
         tasks.removeAll()
+        pendingPermissions.removeAll()
         memoryEvents.removeAll()
         contextBreakdown = ContextBreakdown()
         filesRead.removeAll()
@@ -295,15 +300,15 @@ final class Session: Identifiable {
         return Array(scored.prefix(2).map(\.0))
     }
 
-    /// Respond to a pending permission request.
+    /// Respond to the current (first) pending permission request.
     func respondToPermission(allow: Bool) {
-        guard let request = pendingPermission else { return }
+        guard let request = pendingPermissions.first else { return }
         runner.respondToPermission(
             requestId: request.id,
             allow: allow,
             message: allow ? nil : "User denied permission"
         )
-        pendingPermission = nil
+        pendingPermissions.removeFirst()
     }
 
     // MARK: - Private
@@ -421,7 +426,7 @@ final class Session: Identifiable {
 
         runner.onPermissionRequest = { [weak self] request in
             guard let self = self else { return }
-            self.pendingPermission = request
+            self.pendingPermissions.append(request)
             self.playNotificationIfEnabled()
         }
     }

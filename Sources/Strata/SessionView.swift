@@ -529,16 +529,22 @@ struct SessionView: View {
                 onPickDirectory: { pickDirectory() }
             )
         }
-        .sheet(item: $session.pendingPermission) { request in
-            PermissionRequestView(
-                request: request,
-                onAllow: {
-                    session.respondToPermission(allow: true)
-                },
-                onDeny: {
-                    session.respondToPermission(allow: false)
-                }
-            )
+        .sheet(isPresented: Binding(
+            get: { session.currentPermission != nil },
+            set: { if !$0 { session.respondToPermission(allow: false) } }
+        )) {
+            if let request = session.currentPermission {
+                PermissionRequestView(
+                    request: request,
+                    onAllow: {
+                        session.respondToPermission(allow: true)
+                    },
+                    onDeny: {
+                        session.respondToPermission(allow: false)
+                    },
+                    queueCount: session.pendingPermissions.count - 1
+                )
+            }
         }
         .sheet(isPresented: $showSkills) {
             SkillsPanel(
