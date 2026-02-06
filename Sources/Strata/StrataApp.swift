@@ -16,6 +16,10 @@ struct StrataApp: App {
         WindowGroup {
             ContentView(manager: manager, scheduleManager: scheduleManager)
                 .preferredColorScheme(manager.appearanceMode.colorScheme)
+                .onAppear {
+                    // Connect schedule manager to session manager
+                    scheduleManager.connect(to: manager)
+                }
                 .onChange(of: manager.appearanceMode, initial: true) { _, newMode in
                     // Resolve the NSAppearance for the selected mode
                     let resolved: NSAppearance? = {

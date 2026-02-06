@@ -210,8 +210,15 @@ struct ScheduleEditorView: View {
     @State private var selectedDay: Int = 2  // Monday
     @State private var intervalMinutes: Int = 60
     @State private var notifyOnComplete: Bool = true
+    @State private var permissionMode: SchedulePermissionMode = .acceptEdits
+    @State private var reuseSession: Bool = true
 
     @Environment(\.dismiss) private var dismiss
+
+    /// Warning if creating many sessions with high frequency
+    private var showFrequencyWarning: Bool {
+        !reuseSession && scheduleType == .interval && intervalMinutes < 30
+    }
 
     enum ScheduleType: String, CaseIterable {
         case daily = "Daily"
@@ -228,14 +235,18 @@ struct ScheduleEditorView: View {
                     TextField("Prompt", text: $prompt, axis: .vertical)
                         .lineLimit(3...6)
 
-                    HStack {
-                        Text("Working Directory")
-                        Spacer()
-                        Button(workingDirectory.abbreviatingHome) {
+                    LabeledContent("Working Directory") {
+                        Button {
                             pickDirectory()
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text(workingDirectory.abbreviatingHome)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                                Image(systemName: "folder")
+                            }
                         }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(.secondary)
+                        .buttonStyle(.bordered)
                     }
                 }
 
@@ -245,6 +256,7 @@ struct ScheduleEditorView: View {
                             Text(type.rawValue).tag(type)
                         }
                     }
+                    .pickerStyle(.segmented)
 
                     switch scheduleType {
                     case .daily, .weekdays:
@@ -264,7 +276,51 @@ struct ScheduleEditorView: View {
                 }
 
                 Section("Options") {
+                    Picker("Permission Mode", selection: $permissionMode) {
+                        ForEach(SchedulePermissionMode.allCases) { mode in
+                            Text(mode.displayName).tag(mode)
+                        }
+                    }
+                    Text(permissionMode.description)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    Toggle("Reuse same session", isOn: $reuseSession)
+                    Text(reuseSession
+                         ? "Continues conversation in one session, preserving context"
+                         : "Creates a new session for each run")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    if showFrequencyWarning {
+                        Label {
+                            Text("Running every \(intervalMinutes) min without session reuse will create many sessions. Consider enabling \"Reuse same session\".")
+                        } icon: {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.orange)
+                        }
+                        .font(.caption)
+                        .padding(.vertical, 4)
+                    }
+
                     Toggle("Notify when complete", isOn: $notifyOnComplete)
+                }
+
+                if editing != nil {
+                    Section {
+                        Button(role: .destructive) {
+                            if let schedule = editing {
+                                manager.delete(schedule)
+                            }
+                            dismiss()
+                        } label: {
+                            HStack {
+                                Spacer()
+                                Label("Delete Schedule", systemImage: "trash")
+                                Spacer()
+                            }
+                        }
+                    }
                 }
             }
             .formStyle(.grouped)
@@ -291,22 +347,27 @@ struct ScheduleEditorView: View {
     }
 
     private var timePicker: some View {
-        HStack {
-            Picker("Hour", selection: $selectedHour) {
-                ForEach(0..<24, id: \.self) { hour in
-                    Text(formatHour(hour)).tag(hour)
+        LabeledContent("Time") {
+            HStack(spacing: 4) {
+                Picker("Hour", selection: $selectedHour) {
+                    ForEach(0..<24, id: \.self) { hour in
+                        Text(formatHour(hour)).tag(hour)
+                    }
                 }
-            }
-            .frame(width: 100)
+                .labelsHidden()
+                .frame(width: 90)
 
-            Text(":")
+                Text(":")
+                    .foregroundStyle(.secondary)
 
-            Picker("Minute", selection: $selectedMinute) {
-                ForEach([0, 15, 30, 45], id: \.self) { minute in
-                    Text(String(format: "%02d", minute)).tag(minute)
+                Picker("Minute", selection: $selectedMinute) {
+                    ForEach([0, 15, 30, 45], id: \.self) { minute in
+                        Text(String(format: "%02d", minute)).tag(minute)
+                    }
                 }
+                .labelsHidden()
+                .frame(width: 70)
             }
-            .frame(width: 80)
         }
     }
 
@@ -324,6 +385,8 @@ struct ScheduleEditorView: View {
         prompt = schedule.prompt
         workingDirectory = schedule.workingDirectory
         notifyOnComplete = schedule.notifyOnComplete
+        permissionMode = schedule.permissionMode
+        reuseSession = schedule.reuseSession
 
         switch schedule.schedule {
         case .daily(let hour, let minute):
@@ -361,15 +424,22 @@ struct ScheduleEditorView: View {
     }
 
     private func save() {
-        let schedule = ScheduledPrompt(
+        var schedule = ScheduledPrompt(
             id: editing?.id ?? UUID(),
             name: name,
             prompt: prompt,
             workingDirectory: workingDirectory,
             schedule: buildSchedule(),
             isEnabled: editing?.isEnabled ?? true,
-            notifyOnComplete: notifyOnComplete
+            notifyOnComplete: notifyOnComplete,
+            permissionMode: permissionMode,
+            reuseSession: reuseSession
         )
+
+        // Preserve the lastSessionId if editing and reusing session
+        if let existing = editing, reuseSession {
+            schedule.lastSessionId = existing.lastSessionId
+        }
 
         if editing != nil {
             manager.update(schedule)

@@ -62,6 +62,12 @@ final class Session: Identifiable {
     /// Called by SessionManager when data changes that should be persisted.
     var onDataChanged: (() -> Void)?
 
+    /// External callback when response completes (for ScheduleManager).
+    var onComplete: ((String, String?, UsageInfo?) -> Void)?
+
+    /// External callback when an error occurs (for ScheduleManager).
+    var onError: ((String) -> Void)?
+
     private let runner = ClaudeRunner()
 
     init(
@@ -416,12 +422,18 @@ final class Session: Identifiable {
             }
 
             self.onDataChanged?()
+
+            // Call external completion callback
+            self.onComplete?(fullText, sid, usage)
         }
 
         runner.onError = { [weak self] error in
             guard let self = self else { return }
             self.isResponding = false
             self.messages.append(ChatMessage(role: .system, text: "Error: \(error)"))
+
+            // Call external error callback
+            self.onError?(error)
         }
 
         runner.onPermissionRequest = { [weak self] request in

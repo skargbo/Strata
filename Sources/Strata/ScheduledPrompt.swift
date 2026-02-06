@@ -9,6 +9,9 @@ struct ScheduledPrompt: Identifiable, Codable {
     var schedule: Schedule
     var isEnabled: Bool
     var notifyOnComplete: Bool
+    var permissionMode: SchedulePermissionMode
+    var reuseSession: Bool  // If true, continues in the same session; if false, creates new each run
+    var lastSessionId: UUID?  // The session to reuse (if reuseSession is true)
     var createdAt: Date
     var lastRunAt: Date?
     var lastResult: ScheduleResult?
@@ -20,7 +23,9 @@ struct ScheduledPrompt: Identifiable, Codable {
         workingDirectory: String,
         schedule: Schedule,
         isEnabled: Bool = true,
-        notifyOnComplete: Bool = true
+        notifyOnComplete: Bool = true,
+        permissionMode: SchedulePermissionMode = .acceptEdits,
+        reuseSession: Bool = true
     ) {
         self.id = id
         self.name = name
@@ -29,13 +34,46 @@ struct ScheduledPrompt: Identifiable, Codable {
         self.schedule = schedule
         self.isEnabled = isEnabled
         self.notifyOnComplete = notifyOnComplete
+        self.permissionMode = permissionMode
+        self.reuseSession = reuseSession
         self.createdAt = Date()
+    }
+
+    /// Returns true if this schedule runs frequently (less than 30 min intervals)
+    var isHighFrequency: Bool {
+        if case .interval(let seconds) = schedule {
+            return seconds < 1800  // Less than 30 minutes
+        }
+        return false
     }
 
     /// Calculate the next run date from now.
     func nextRunDate(after date: Date = Date()) -> Date? {
         guard isEnabled else { return nil }
         return schedule.nextDate(after: date)
+    }
+}
+
+// MARK: - Permission Mode for Scheduled Tasks
+
+enum SchedulePermissionMode: String, Codable, CaseIterable, Identifiable {
+    case acceptEdits = "acceptEdits"
+    case bypassPermissions = "bypassPermissions"
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .acceptEdits: "Auto-accept edits"
+        case .bypassPermissions: "Full autonomy"
+        }
+    }
+
+    var description: String {
+        switch self {
+        case .acceptEdits: "Automatically accepts file edits, asks for other permissions"
+        case .bypassPermissions: "Runs without any permission prompts (use with caution)"
+        }
     }
 }
 

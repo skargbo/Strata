@@ -9,8 +9,11 @@ final class ScheduleManager {
     var currentlyRunningId: UUID?
 
     private var timers: [UUID: Timer] = [:]
-    private let runner = ClaudeRunner()
-    private var pendingResult: (id: UUID, startedAt: Date, response: String)?
+    private weak var sessionManager: SessionManager?
+    private var scheduledRunsGroupId: UUID?
+
+    /// Name for the auto-created sidebar group
+    private static let scheduledRunsGroupName = "Scheduled Runs"
 
     private let storageURL: URL = {
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
@@ -19,11 +22,18 @@ final class ScheduleManager {
         return strataDir.appendingPathComponent("schedules.json")
     }()
 
-    init() {
+    init(sessionManager: SessionManager? = nil) {
+        self.sessionManager = sessionManager
         loadSchedules()
-        setupRunnerCallbacks()
         scheduleAllTimers()
         requestNotificationPermission()
+    }
+
+    /// Connect to the session manager (called after init if not provided)
+    func connect(to sessionManager: SessionManager) {
+        self.sessionManager = sessionManager
+        // Find existing "Scheduled Runs" group if it exists
+        self.scheduledRunsGroupId = sessionManager.groups.first { $0.name == Self.scheduledRunsGroupName }?.id
     }
 
     // MARK: - CRUD
@@ -72,23 +82,125 @@ final class ScheduleManager {
     }
 
     private func executeSchedule(_ schedule: ScheduledPrompt) {
-        guard let index = schedules.firstIndex(where: { $0.id == schedule.id }) else { return }
+        guard let sessionManager = sessionManager,
+              let index = schedules.firstIndex(where: { $0.id == schedule.id }) else { return }
 
         isRunningSchedule = true
         currentlyRunningId = schedule.id
-        pendingResult = (id: schedule.id, startedAt: Date(), response: "")
 
-        runner.send(
-            message: schedule.prompt,
-            workingDirectory: schedule.workingDirectory,
-            permissionMode: "plan",  // Safe mode for scheduled tasks
-            model: nil,
-            systemPrompt: "You are running as a scheduled task. Be concise in your response."
-        )
+        // Try to find existing session if reusing
+        var session: Session?
+
+        if schedule.reuseSession, let lastId = schedule.lastSessionId {
+            // Look for existing session
+            if let anySession = sessionManager.sessions.first(where: { $0.id == lastId }),
+               case .claude(let existingSession) = anySession {
+                session = existingSession
+            }
+        }
+
+        // Create new session if needed
+        if session == nil {
+            let groupId = getOrCreateScheduledRunsGroup()
+
+            // Create session name
+            let sessionName: String
+            if schedule.reuseSession {
+                // Persistent session - just use the schedule name
+                sessionName = schedule.name
+            } else {
+                // One-off session - include timestamp
+                let formatter = DateFormatter()
+                formatter.dateFormat = "MMM d, h:mm a"
+                sessionName = "\(schedule.name) — \(formatter.string(from: Date()))"
+            }
+
+            let newSession = sessionManager.newSession(
+                name: sessionName,
+                workingDirectory: schedule.workingDirectory
+            )
+
+            // Move session to the Scheduled Runs group
+            if let groupId = groupId {
+                sessionManager.moveSession(.claude(newSession), to: sessionManager.groups.first { $0.id == groupId })
+            }
+
+            // Configure session for scheduled execution
+            newSession.settings.permissionMode = schedule.permissionMode.rawValue
+            newSession.settings.customSystemPrompt = "You are running as a scheduled task. Be concise in your response."
+
+            session = newSession
+
+            // Save the session ID for future reuse
+            if schedule.reuseSession {
+                schedules[index].lastSessionId = newSession.id
+            }
+        }
+
+        guard let session = session else { return }
+
+        // Track when we started
+        let startedAt = Date()
+
+        // Listen for completion to update our records
+        session.onComplete = { [weak self] fullText, _, _ in
+            guard let self = self else { return }
+
+            let result = ScheduleResult(
+                scheduledPromptId: schedule.id,
+                startedAt: startedAt,
+                success: true,
+                responseText: fullText
+            )
+
+            self.recordResult(result, for: schedule.id)
+            self.isRunningSchedule = false
+            self.currentlyRunningId = nil
+        }
+
+        session.onError = { [weak self] error in
+            guard let self = self else { return }
+
+            let result = ScheduleResult(
+                scheduledPromptId: schedule.id,
+                startedAt: startedAt,
+                success: false,
+                errorMessage: error
+            )
+
+            self.recordResult(result, for: schedule.id)
+            self.isRunningSchedule = false
+            self.currentlyRunningId = nil
+        }
+
+        // Send the prompt
+        session.send(schedule.prompt)
 
         // Update last run time
         schedules[index].lastRunAt = Date()
         saveSchedules()
+    }
+
+    /// Get or create the "Scheduled Runs" sidebar group
+    private func getOrCreateScheduledRunsGroup() -> UUID? {
+        guard let sessionManager = sessionManager else { return nil }
+
+        // Check if we already have the group ID cached
+        if let groupId = scheduledRunsGroupId,
+           sessionManager.groups.contains(where: { $0.id == groupId }) {
+            return groupId
+        }
+
+        // Look for existing group by name
+        if let existing = sessionManager.groups.first(where: { $0.name == Self.scheduledRunsGroupName }) {
+            scheduledRunsGroupId = existing.id
+            return existing.id
+        }
+
+        // Create new group
+        let group = sessionManager.createGroup(name: Self.scheduledRunsGroupName)
+        scheduledRunsGroupId = group.id
+        return group.id
     }
 
     // MARK: - Timer Management
@@ -106,7 +218,7 @@ final class ScheduleManager {
         let interval = nextRun.timeIntervalSinceNow
         guard interval > 0 else {
             // Already past, schedule for next occurrence
-            if let futureRun = schedule.nextRunDate(after: Date().addingTimeInterval(1)) {
+            if schedule.nextRunDate(after: Date().addingTimeInterval(1)) != nil {
                 scheduleTimer(for: ScheduledPrompt(
                     id: schedule.id,
                     name: schedule.name,
@@ -141,56 +253,10 @@ final class ScheduleManager {
         timers.removeValue(forKey: id)
     }
 
-    // MARK: - Runner Callbacks
+    // MARK: - Result Recording
 
-    private func setupRunnerCallbacks() {
-        runner.onSetText = { [weak self] text in
-            guard let self = self, var pending = self.pendingResult else { return }
-            pending.response = text
-            self.pendingResult = pending
-        }
-
-        runner.onToken = { [weak self] token in
-            guard let self = self, var pending = self.pendingResult else { return }
-            pending.response += token
-            self.pendingResult = pending
-        }
-
-        runner.onComplete = { [weak self] fullText, _, _ in
-            guard let self = self, let pending = self.pendingResult else { return }
-
-            let result = ScheduleResult(
-                scheduledPromptId: pending.id,
-                startedAt: pending.startedAt,
-                success: true,
-                responseText: pending.response.isEmpty ? fullText : pending.response
-            )
-
-            self.recordResult(result)
-            self.isRunningSchedule = false
-            self.currentlyRunningId = nil
-            self.pendingResult = nil
-        }
-
-        runner.onError = { [weak self] error in
-            guard let self = self, let pending = self.pendingResult else { return }
-
-            let result = ScheduleResult(
-                scheduledPromptId: pending.id,
-                startedAt: pending.startedAt,
-                success: false,
-                errorMessage: error
-            )
-
-            self.recordResult(result)
-            self.isRunningSchedule = false
-            self.currentlyRunningId = nil
-            self.pendingResult = nil
-        }
-    }
-
-    private func recordResult(_ result: ScheduleResult) {
-        guard let index = schedules.firstIndex(where: { $0.id == result.scheduledPromptId }) else { return }
+    private func recordResult(_ result: ScheduleResult, for scheduleId: UUID) {
+        guard let index = schedules.firstIndex(where: { $0.id == scheduleId }) else { return }
 
         schedules[index].lastResult = result
         saveSchedules()
