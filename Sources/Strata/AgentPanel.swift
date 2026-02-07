@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 // MARK: - FocusedValue for menu bar toggle
@@ -41,7 +42,25 @@ struct AgentPanel: View {
             HStack {
                 Text("Agents")
                     .font(.headline)
+
                 Spacer()
+
+                Button {
+                    importAgent()
+                } label: {
+                    Label("Import", systemImage: "square.and.arrow.down")
+                }
+                .help("Import agent from file")
+
+                if selectedAgent != nil {
+                    Button {
+                        exportAgent()
+                    } label: {
+                        Label("Export", systemImage: "square.and.arrow.up")
+                    }
+                    .help("Export selected agent")
+                }
+
                 Button {
                     dismiss()
                 } label: {
@@ -178,6 +197,51 @@ struct AgentPanel: View {
             )
         }
         .frame(minWidth: 700, minHeight: 500)
+    }
+
+    // MARK: - Import/Export
+
+    private func importAgent() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.json]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.message = "Select an agent JSON file to import"
+
+        if panel.runModal() == .OK, let url = panel.url {
+            do {
+                let data = try Data(contentsOf: url)
+                var agent = try JSONDecoder().decode(CustomAgent.self, from: data)
+                // Give it a new ID to avoid conflicts
+                agent.id = UUID()
+                agent.createdAt = Date()
+                agent.updatedAt = Date()
+                agentManager.save(agent)
+                selectedAgent = agent
+            } catch {
+                print("Failed to import agent: \(error)")
+            }
+        }
+    }
+
+    private func exportAgent() {
+        guard let agent = selectedAgent else { return }
+
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.json]
+        panel.nameFieldStringValue = "\(agent.name.lowercased().replacingOccurrences(of: " ", with: "-")).json"
+        panel.message = "Export agent as JSON"
+
+        if panel.runModal() == .OK, let url = panel.url {
+            do {
+                let encoder = JSONEncoder()
+                encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+                let data = try encoder.encode(agent)
+                try data.write(to: url)
+            } catch {
+                print("Failed to export agent: \(error)")
+            }
+        }
     }
 }
 
