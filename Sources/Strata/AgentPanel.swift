@@ -98,11 +98,20 @@ struct AgentPanel: View {
                     }
                 )
             } else {
-                ContentUnavailableView(
-                    "Select an Agent",
-                    systemImage: "person.crop.rectangle.stack",
-                    description: Text("Choose an agent from the list or create a new one.")
-                )
+                VStack(spacing: 16) {
+                    ContentUnavailableView(
+                        "Select an Agent",
+                        systemImage: "person.crop.rectangle.stack",
+                        description: Text("Choose an agent from the list or create your own.")
+                    )
+
+                    Button {
+                        isCreatingNew = true
+                    } label: {
+                        Label("Create New Agent", systemImage: "plus.circle.fill")
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
             }
         }
         .sheet(isPresented: $isEditing) {
