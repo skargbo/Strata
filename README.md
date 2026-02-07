@@ -16,11 +16,14 @@ Strata wraps [Claude Code](https://docs.anthropic.com/en/docs/claude-code) in a 
 
 ### Core
 - **Multi-session management** — Run multiple Claude conversations and terminal sessions side by side
+- **Session folders** — Organize sessions into collapsible groups in the sidebar
 - **Streaming chat** — Live token streaming with markdown rendering, code blocks, and syntax hints
+- **Thinking time indicator** — See elapsed time while Claude is responding ("Thinking... for 7s")
 - **Inline tool cards** — See Bash commands, file edits, reads, searches rendered as expandable cards in the conversation
-- **Diff inspector panel** — Side panel showing all file changes with color-coded diffs and expand/collapse
+- **Workspace inspector** — Side panel with collapsible Changes and Todos sections
 - **Permission flow** — Approve or deny tool use (file writes, command execution) per invocation
 - **Permission modes** — Guided (ask first), Auto (accept edits), Plan Only (read-only)
+- **Permission queue** — Handles rapid tool calls without losing requests
 - **Built-in terminal** — Full terminal emulation via SwiftTerm, alongside your Claude sessions
 - **Session persistence** — Conversations survive app restarts, stored locally
 
@@ -33,14 +36,40 @@ Strata wraps [Claude Code](https://docs.anthropic.com/en/docs/claude-code) in a 
 - **Smart suggestions** — Context-aware skill chips appear based on your conversation
 
 ### Task Tracking
-- **Task list widget** — Live progress bar above the input showing task completion
-- **Inline task cards** — Expandable teal cards showing task status (pending, in progress, completed)
+- **Visual task panel** — Task list in Workspace inspector with status icons (✓ completed, ⚙ in-progress, ○ pending)
+- **Task progress bar** — Live progress bar above the input showing task completion
+- **Inline task cards** — Expandable teal cards showing task status in the conversation
 - **Active task indicator** — Spinner with current task description while Claude works
+- **Smart sorting** — Tasks sorted by status: in-progress first, then pending, then completed
 - **Automatic tracking** — Tasks created by Claude are tracked and persisted with your session
+
+### Memory
+- **Memory Viewer panel** — Browse and edit CLAUDE.md files via Cmd+Shift+M
+- **Memory Timeline** — Chronological history of file operations, commands, and edits during the session
+- **File access history** — See what files Claude has read, edited, or created with timestamps
+
+### Scheduled Prompts
+- **Schedule panel** — Automate recurring Claude tasks via Cmd+H
+- **Flexible scheduling** — Run daily, weekdays, weekly, or at custom intervals
+- **Session management** — Scheduled runs create sessions in a dedicated "Scheduled Runs" group
+- **Permission modes** — Configure auto-accept edits or full autonomy per schedule
+- **Session reuse** — Choose to continue existing conversation or create fresh sessions
+- **Notifications** — macOS notifications when scheduled tasks complete
+
+### Custom Agents
+- **Agents panel** — Create and manage reusable AI assistants via Cmd+Shift+A
+- **21 built-in agents** — 12 developer tools + 9 small business agents ready to use
+- **Developer agents** — Code Explainer, Test Writer, Bug Hunter, Security Reviewer, Refactoring Assistant, Documentation Writer, Code Reviewer, Performance Optimizer, Dependency Updater, Git Helper, API Designer, Database Optimizer
+- **Business agents** — Marketing Writer, Social Media Manager, Business Email Writer, Financial Analyst, HR Assistant, Sales Assistant, Customer Support Writer, Contract Reviewer, Meeting Notes
+- **Agent editor** — Create custom agents with system prompts, permission modes, and tool restrictions
+- **Import/Export** — Share agent configurations as JSON files
+- **Agent mode indicator** — Visual indicator when running an agent with easy exit button
 
 ### Productivity
 - **Command palette** — Quick access to all actions via Cmd+K with fuzzy search
 - **Context usage bar** — Live token count with color-coded progress toward the context limit
+- **Context breakdown** — Expandable view showing tokens by category (conversation, tools, system prompt)
+- **Active vs cached tokens** — Context bar distinguishes active tokens from cached for accurate usage display
 - **Conversation compaction** — Summarize long conversations to reclaim context space
 - **Claude Code commands** — Native access to /init, /review, /doctor, /memory, and /clear
 - **Focus mode** — Hide the sidebar for distraction-free conversation (Cmd+Shift+F)
@@ -194,6 +223,21 @@ Strata/
     ├── SkillsPanel.swift             # Skills browser UI (Installed/Catalog)
     ├── SkillSuggestionChips.swift    # Context-aware skill suggestions
     │
+    ├── CustomAgent.swift             # Agent model, built-in agents, persistence
+    ├── AgentPanel.swift              # Agents browser, editor, import/export
+    │
+    ├── MemoryFile.swift              # CLAUDE.md file model
+    ├── MemoryScanner.swift           # Scans for memory files in directories
+    ├── MemoryViewerPanel.swift       # Memory viewer UI (Cmd+Shift+M)
+    ├── MemoryTimelinePanel.swift     # Chronological activity history
+    ├── ContextBreakdownView.swift    # Token usage breakdown by category
+    │
+    ├── ScheduledPrompt.swift         # Scheduled prompt model
+    ├── ScheduleManager.swift         # Schedule execution engine
+    ├── SchedulesPanel.swift          # Scheduled prompts UI (Cmd+H)
+    │
+    ├── SessionGroup.swift            # Session folder/group model
+    │
     ├── PersistenceManager.swift      # File I/O, debounced saves
     ├── Persistence+Codable.swift     # Codable models for persistence
     └── Persistence+Conversions.swift # Runtime ↔ persistent model conversion
@@ -212,6 +256,9 @@ Strata/
 | Cmd+Shift+F | Toggle focus mode |
 | Cmd+Shift+D | Toggle diff inspector |
 | Cmd+Shift+S | Open skills panel |
+| Cmd+Shift+A | Open agents panel |
+| Cmd+Shift+M | Open memory viewer |
+| Cmd+H | Open scheduled prompts |
 | Cmd+, | Session settings |
 | Ctrl+C | Cancel Claude response |
 | Tab | Accept input suggestion |
@@ -225,8 +272,9 @@ Strata supports switching between Claude models per session:
 
 | Model | Description |
 |---|---|
+| Claude Opus 4.6 | Latest flagship, highest capability |
 | Claude Sonnet 4.5 | Balanced speed and capability (default) |
-| Claude Opus 4 | Highest capability |
+| Claude Opus 4 | High capability |
 | Claude Haiku 3.5 | Fastest, lowest cost |
 
 ---
