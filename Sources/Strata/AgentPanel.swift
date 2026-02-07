@@ -33,44 +33,69 @@ struct AgentPanel: View {
         }
     }
 
+    @Environment(\.dismiss) private var dismiss
+
     var body: some View {
-        NavigationSplitView {
-            // Agent list
-            VStack(spacing: 0) {
-                // Search bar
-                HStack {
-                    Image(systemName: "magnifyingglass")
+        VStack(spacing: 0) {
+            // Header with title and close button
+            HStack {
+                Text("Agents")
+                    .font(.headline)
+                Spacer()
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
                         .foregroundStyle(.secondary)
-                    TextField("Search agents...", text: $searchText)
-                        .textFieldStyle(.plain)
+                        .font(.title2)
                 }
-                .padding(8)
-                .background(Color(nsColor: .controlBackgroundColor))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-
-                Divider()
-
-                // Agent list
-                List(filteredAgents, selection: $selectedAgent) { agent in
-                    AgentListRow(agent: agent, isSelected: selectedAgent?.id == agent.id)
-                        .tag(agent)
-                }
-                .listStyle(.sidebar)
+                .buttonStyle(.plain)
+                .help("Close (Esc)")
             }
-            .navigationSplitViewColumnWidth(min: 200, ideal: 250, max: 300)
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+
+            Divider()
+
+            NavigationSplitView {
+                // Agent list
+                VStack(spacing: 0) {
+                    // Search bar
+                    HStack {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundStyle(.secondary)
+                        TextField("Search agents...", text: $searchText)
+                            .textFieldStyle(.plain)
+                    }
+                    .padding(8)
+                    .background(Color(nsColor: .controlBackgroundColor))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .padding(.horizontal, 12)
+                    .padding(.top, 8)
+
+                    // New Agent button - always visible
                     Button {
                         isCreatingNew = true
                     } label: {
-                        Image(systemName: "plus")
+                        Label("New Agent", systemImage: "plus.circle.fill")
+                            .frame(maxWidth: .infinity)
                     }
-                    .help("Create new agent")
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+
+                    Divider()
+
+                    // Agent list
+                    List(filteredAgents, selection: $selectedAgent) { agent in
+                        AgentListRow(agent: agent, isSelected: selectedAgent?.id == agent.id)
+                            .tag(agent)
+                    }
+                    .listStyle(.sidebar)
                 }
-            }
-        } detail: {
+                .navigationSplitViewColumnWidth(min: 200, ideal: 250, max: 300)
+            } detail: {
             if let agent = selectedAgent {
                 AgentDetailView(
                     agent: agent,
@@ -113,7 +138,8 @@ struct AgentPanel: View {
                     .buttonStyle(.borderedProminent)
                 }
             }
-        }
+        }  // End NavigationSplitView
+        }  // End VStack
         .sheet(isPresented: $isEditing) {
             if let agent = selectedAgent {
                 AgentEditorSheet(
