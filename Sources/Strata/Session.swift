@@ -22,6 +22,7 @@ final class Session: Identifiable {
     // Conversation state
     var messages: [ChatMessage] = []
     var isResponding: Bool = false
+    var respondingStartedAt: Date?  // When thinking/responding started (for elapsed time display)
     var sessionId: String? // SDK session ID for conversation continuity
     var totalCost: Double = 0
     var lastUsage: UsageInfo?
@@ -138,6 +139,7 @@ final class Session: Identifiable {
         // Add user message
         messages.append(ChatMessage(role: .user, text: text))
         isResponding = true
+        respondingStartedAt = Date()
         currentResponse = ""
         needsNewAssistantMessage = false
 
@@ -184,6 +186,7 @@ final class Session: Identifiable {
         }
 
         isResponding = true
+        respondingStartedAt = Date()
         currentResponse = ""
         needsNewAssistantMessage = false
         messages.append(ChatMessage(role: .assistant, text: ""))
@@ -202,6 +205,7 @@ final class Session: Identifiable {
     func cancel() {
         runner.cancel()
         isResponding = false
+        respondingStartedAt = nil
         needsNewAssistantMessage = false
         if !currentResponse.isEmpty {
             updateLastAssistantMessage(currentResponse + "\n\n*[Cancelled]*")
@@ -221,6 +225,7 @@ final class Session: Identifiable {
         contextTokens = 0
         currentResponse = ""
         isResponding = false
+        respondingStartedAt = nil
         isCompacting = false
         needsNewAssistantMessage = false
         lastUsage = nil
@@ -237,6 +242,7 @@ final class Session: Identifiable {
         guard let sid = sessionId, !isResponding else { return }
         isCompacting = true
         isResponding = true
+        respondingStartedAt = Date()
         currentResponse = ""
         needsNewAssistantMessage = false
         messages.append(ChatMessage(role: .system, text: "Compacting conversation\u{2026}"))
@@ -389,6 +395,7 @@ final class Session: Identifiable {
         runner.onComplete = { [weak self] fullText, sid, usage in
             guard let self = self else { return }
             self.isResponding = false
+            self.respondingStartedAt = nil
             self.playNotificationIfEnabled()
 
             if let sid = sid {
@@ -430,6 +437,7 @@ final class Session: Identifiable {
         runner.onError = { [weak self] error in
             guard let self = self else { return }
             self.isResponding = false
+            self.respondingStartedAt = nil
             self.messages.append(ChatMessage(role: .system, text: "Error: \(error)"))
 
             // Call external error callback

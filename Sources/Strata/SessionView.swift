@@ -294,6 +294,7 @@ struct SessionView: View {
                 ChatView(
                     messages: session.messages,
                     isResponding: session.isResponding,
+                    respondingStartedAt: session.respondingStartedAt,
                     toolCardsDefaultExpanded: session.settings.toolCardsDefaultExpanded,
                     messageSpacing: session.settings.theme.density.messageSpacing,
                     bodyFontSize: session.settings.theme.fontSize.bodySize,
@@ -365,11 +366,6 @@ struct SessionView: View {
                         session.sendSkill(skill, arguments: "")
                     }
                 }
-            }
-
-            // Task progress bar
-            if !session.tasks.isEmpty {
-                TaskProgressBar(tasks: Array(session.tasks.values))
             }
 
             Divider()
@@ -462,6 +458,7 @@ struct SessionView: View {
         .inspector(isPresented: $showDiffPanel) {
             DiffInspectorView(
                 changes: currentFileChanges,
+                tasks: Array(session.tasks.values),
                 isPresented: $showDiffPanel
             )
             .inspectorColumnWidth(min: 280, ideal: 380, max: 550)
@@ -722,10 +719,33 @@ private struct ContextUsageBar: View {
     @State private var showBreakdownPopover = false
     @State private var compactFocus = ""
 
+    // Active (uncached) tokens - these are what matter for context pressure
+    private var activeTokens: Int {
+        max(contextTokens - cacheReadTokens, 0)
+    }
+
+    // Percentage based on active tokens (more accurate for context pressure)
+    private var activePercent: Double {
+        guard maxTokens > 0 else { return 0 }
+        return Double(activeTokens) / Double(maxTokens)
+    }
+
+    // Cache percentage of total
+    private var cachePercent: Double {
+        guard contextTokens > 0 else { return 0 }
+        return Double(cacheReadTokens) / Double(contextTokens)
+    }
+
     private var barColor: Color {
-        if usagePercent > 0.8 { return .red }
-        if usagePercent > 0.5 { return .orange }
+        // Use active percentage for color (cached tokens are less concerning)
+        if activePercent > 0.8 { return .red }
+        if activePercent > 0.5 { return .orange }
         return .green
+    }
+
+    private var displayPercent: Int {
+        // Cap at 100% for display, but show actual in breakdown
+        min(Int(usagePercent * 100), 100)
     }
 
     var body: some View {
@@ -735,22 +755,48 @@ private struct ContextUsageBar: View {
                 showBreakdownPopover.toggle()
             } label: {
                 HStack(spacing: 8) {
+                    // Stacked bar showing cached vs active
                     GeometryReader { geo in
                         ZStack(alignment: .leading) {
+                            // Background
                             RoundedRectangle(cornerRadius: 3)
                                 .fill(Color.primary.opacity(0.08))
+
+                            // Cached portion (lighter, behind)
+                            if cacheReadTokens > 0 {
+                                RoundedRectangle(cornerRadius: 3)
+                                    .fill(Color.blue.opacity(0.3))
+                                    .frame(width: geo.size.width * min(usagePercent, 1.0))
+                            }
+
+                            // Active portion (solid color, in front)
                             RoundedRectangle(cornerRadius: 3)
                                 .fill(barColor)
-                                .frame(width: geo.size.width * min(usagePercent, 1.0))
+                                .frame(width: geo.size.width * min(activePercent, 1.0))
                         }
                     }
                     .frame(height: 6)
                     .frame(maxWidth: 120)
 
+                    // Token display
                     HStack(spacing: 4) {
-                        Text("\(contextTokens.formatted()) / \(maxTokens.formatted()) tokens (\(Int(usagePercent * 100))%)")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
+                        if cacheReadTokens > 0 {
+                            // Show active + cached breakdown
+                            Text("\(activeTokens.formatted()) active")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                            Text("+")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                            Text("\(cacheReadTokens.formatted()) cached")
+                                .font(.caption2)
+                                .foregroundStyle(.blue.opacity(0.8))
+                        } else {
+                            // No cache, show simple display
+                            Text("\(contextTokens.formatted()) / \(maxTokens.formatted())")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
 
                         Image(systemName: "chevron.down")
                             .font(.system(size: 8, weight: .semibold))
@@ -770,7 +816,8 @@ private struct ContextUsageBar: View {
 
             Spacer()
 
-            if usagePercent > 0.5 && canCompact && !isCompacting {
+            // Show compact button based on active context, not total
+            if activePercent > 0.5 && canCompact && !isCompacting {
                 Button {
                     showCompactPopover.toggle()
                 } label: {
@@ -780,11 +827,11 @@ private struct ContextUsageBar: View {
                         Text("Compact")
                             .font(.caption2)
                     }
-                    .foregroundStyle(usagePercent > 0.8 ? .red : .orange)
+                    .foregroundStyle(activePercent > 0.8 ? .red : .orange)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
                     .background(
-                        (usagePercent > 0.8 ? Color.red : Color.orange).opacity(0.12),
+                        (activePercent > 0.8 ? Color.red : Color.orange).opacity(0.12),
                         in: RoundedRectangle(cornerRadius: 4)
                     )
                 }
@@ -870,75 +917,3 @@ struct EmptySessionView: View {
     }
 }
 
-// MARK: - Task Progress Bar
-
-private struct TaskProgressBar: View {
-    let tasks: [SessionTask]
-
-    private var activeTasks: [SessionTask] {
-        tasks.filter { $0.status != .deleted }
-    }
-
-    private var completedCount: Int {
-        activeTasks.filter { $0.status == .completed }.count
-    }
-
-    private var inProgressTask: SessionTask? {
-        activeTasks.first { $0.status == .in_progress }
-    }
-
-    private var progress: Double {
-        guard !activeTasks.isEmpty else { return 0 }
-        return Double(completedCount) / Double(activeTasks.count)
-    }
-
-    var body: some View {
-        HStack(spacing: 8) {
-            // Progress bar
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(Color.primary.opacity(0.08))
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(Color.teal)
-                        .frame(width: geo.size.width * min(progress, 1.0))
-                        .animation(.easeInOut(duration: 0.3), value: progress)
-                }
-            }
-            .frame(height: 6)
-            .frame(maxWidth: 120)
-
-            // Count label
-            Text("\(completedCount)/\(activeTasks.count) tasks")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-
-            // Active task spinner
-            if let active = inProgressTask {
-                HStack(spacing: 4) {
-                    ProgressView()
-                        .controlSize(.mini)
-                    Text(active.activeForm ?? active.subject)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-            }
-
-            Spacer()
-
-            // Completion indicator
-            if completedCount == activeTasks.count && !activeTasks.isEmpty {
-                HStack(spacing: 4) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                    Text("All tasks complete")
-                        .font(.caption2)
-                        .foregroundStyle(.green)
-                }
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 4)
-    }
-}

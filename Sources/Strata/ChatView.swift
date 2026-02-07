@@ -4,6 +4,7 @@ import SwiftUI
 struct ChatView: View {
     let messages: [ChatMessage]
     let isResponding: Bool
+    var respondingStartedAt: Date? = nil
     var toolCardsDefaultExpanded: Bool = false
     var messageSpacing: CGFloat = 12
     var bodyFontSize: CGFloat = 13
@@ -25,13 +26,10 @@ struct ChatView: View {
                     }
 
                     if isResponding {
-                        HStack(spacing: 6) {
-                            ProgressView()
-                                .controlSize(.small)
-                            Text(activityLabel)
-                                .foregroundStyle(.secondary)
-                                .font(.callout)
-                        }
+                        ThinkingIndicator(
+                            label: activityLabel,
+                            startedAt: respondingStartedAt
+                        )
                         .padding(.horizontal, 16)
                         .id("activity-indicator")
                     }
@@ -141,5 +139,65 @@ struct MessageRow: View {
         case .system: return "System"
         case .tool: return "Tool"
         }
+    }
+}
+
+// MARK: - Thinking Indicator with Timer
+
+/// Shows a spinner with activity label and elapsed time.
+struct ThinkingIndicator: View {
+    let label: String
+    let startedAt: Date?
+
+    @State private var elapsedSeconds: Int = 0
+    @State private var timer: Timer?
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ProgressView()
+                .controlSize(.small)
+
+            Text(label)
+                .foregroundStyle(.secondary)
+                .font(.callout)
+
+            if elapsedSeconds > 0 {
+                Text("for \(elapsedSeconds)s")
+                    .foregroundStyle(.tertiary)
+                    .font(.callout)
+                    .monospacedDigit()
+            }
+        }
+        .onAppear {
+            startTimer()
+        }
+        .onDisappear {
+            stopTimer()
+        }
+        .onChange(of: startedAt) {
+            startTimer()
+        }
+    }
+
+    private func startTimer() {
+        stopTimer()
+        updateElapsed()
+
+        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+            updateElapsed()
+        }
+    }
+
+    private func stopTimer() {
+        timer?.invalidate()
+        timer = nil
+    }
+
+    private func updateElapsed() {
+        guard let start = startedAt else {
+            elapsedSeconds = 0
+            return
+        }
+        elapsedSeconds = Int(Date().timeIntervalSince(start))
     }
 }
