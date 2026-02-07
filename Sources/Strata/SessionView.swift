@@ -10,7 +10,6 @@ struct SessionView: View {
     @State private var showSkills: Bool = false
     @State private var showMemoryViewer: Bool = false
     @State private var showMemoryTimeline: Bool = false
-    @State private var showTaskPanel: Bool = true  // Task panel expanded by default
     @FocusState private var inputFocused: Bool
     @State private var triggerInputFocus: Bool = false
     @State private var suggestionIndex: Int = 0
@@ -369,11 +368,6 @@ struct SessionView: View {
                 }
             }
 
-            // Task panel
-            if !session.tasks.isEmpty {
-                TaskPanel(tasks: Array(session.tasks.values), isExpanded: $showTaskPanel)
-            }
-
             Divider()
 
             // Input bar
@@ -464,6 +458,7 @@ struct SessionView: View {
         .inspector(isPresented: $showDiffPanel) {
             DiffInspectorView(
                 changes: currentFileChanges,
+                tasks: Array(session.tasks.values),
                 isPresented: $showDiffPanel
             )
             .inspectorColumnWidth(min: 280, ideal: 380, max: 550)
@@ -872,208 +867,3 @@ struct EmptySessionView: View {
     }
 }
 
-// MARK: - Task Progress Bar (Collapsed View)
-
-private struct TaskProgressBar: View {
-    let tasks: [SessionTask]
-    @Binding var isExpanded: Bool
-
-    private var activeTasks: [SessionTask] {
-        tasks.filter { $0.status != .deleted }
-    }
-
-    private var completedCount: Int {
-        activeTasks.filter { $0.status == .completed }.count
-    }
-
-    private var inProgressTask: SessionTask? {
-        activeTasks.first { $0.status == .in_progress }
-    }
-
-    private var progress: Double {
-        guard !activeTasks.isEmpty else { return 0 }
-        return Double(completedCount) / Double(activeTasks.count)
-    }
-
-    var body: some View {
-        Button {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                isExpanded.toggle()
-            }
-        } label: {
-            HStack(spacing: 8) {
-                // Expand/collapse chevron
-                Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.tertiary)
-                    .frame(width: 12)
-
-                // Todos label with count
-                HStack(spacing: 4) {
-                    Image(systemName: "checklist")
-                        .font(.caption)
-                    Text("Todos")
-                        .font(.caption.weight(.medium))
-                    Text("\(activeTasks.count)")
-                        .font(.caption.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                }
-
-                // Progress bar
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        RoundedRectangle(cornerRadius: 3)
-                            .fill(Color.primary.opacity(0.08))
-                        RoundedRectangle(cornerRadius: 3)
-                            .fill(Color.teal)
-                            .frame(width: geo.size.width * min(progress, 1.0))
-                            .animation(.easeInOut(duration: 0.3), value: progress)
-                    }
-                }
-                .frame(height: 6)
-                .frame(maxWidth: 100)
-
-                // Active task spinner
-                if let active = inProgressTask {
-                    HStack(spacing: 4) {
-                        ProgressView()
-                            .controlSize(.mini)
-                        Text(active.activeForm ?? active.subject)
-                            .font(.caption2)
-                            .foregroundStyle(.orange)
-                            .lineLimit(1)
-                    }
-                }
-
-                Spacer()
-
-                // Completion indicator
-                if completedCount == activeTasks.count && !activeTasks.isEmpty {
-                    HStack(spacing: 4) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
-                        Text("Complete")
-                            .font(.caption2)
-                            .foregroundStyle(.green)
-                    }
-                } else {
-                    Text("\(completedCount)/\(activeTasks.count)")
-                        .font(.caption2.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 6)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-// MARK: - Task Panel (Expanded View)
-
-private struct TaskPanel: View {
-    let tasks: [SessionTask]
-    @Binding var isExpanded: Bool
-
-    private var activeTasks: [SessionTask] {
-        tasks.filter { $0.status != .deleted }
-            .sorted { t1, t2 in
-                // Sort: in_progress first, then pending, then completed
-                let order: [SessionTask.TaskStatus] = [.in_progress, .pending, .completed]
-                let i1 = order.firstIndex(of: t1.status) ?? 99
-                let i2 = order.firstIndex(of: t2.status) ?? 99
-                if i1 != i2 { return i1 < i2 }
-                // Then by ID (numeric order)
-                return (Int(t1.id) ?? 0) < (Int(t2.id) ?? 0)
-            }
-    }
-
-    var body: some View {
-        VStack(spacing: 0) {
-            // Header bar (clickable to collapse)
-            TaskProgressBar(tasks: tasks, isExpanded: $isExpanded)
-
-            // Expanded task list
-            if isExpanded {
-                Divider()
-                    .padding(.horizontal, 16)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    ForEach(activeTasks) { task in
-                        TaskRow(task: task)
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-            }
-        }
-        .background(Color(nsColor: .controlBackgroundColor).opacity(0.5))
-    }
-}
-
-// MARK: - Task Row
-
-private struct TaskRow: View {
-    let task: SessionTask
-
-    private var statusIcon: String {
-        switch task.status {
-        case .completed: return "checkmark.circle.fill"
-        case .in_progress: return "circle.dotted"
-        case .pending: return "circle"
-        case .deleted: return "xmark.circle"
-        }
-    }
-
-    private var statusColor: Color {
-        switch task.status {
-        case .completed: return .green
-        case .in_progress: return .orange
-        case .pending: return .secondary
-        case .deleted: return .red
-        }
-    }
-
-    var body: some View {
-        HStack(spacing: 8) {
-            // Status icon
-            if task.status == .in_progress {
-                // Animated spinner for in-progress
-                ProgressView()
-                    .controlSize(.mini)
-                    .frame(width: 14, height: 14)
-            } else {
-                Image(systemName: statusIcon)
-                    .font(.system(size: 12))
-                    .foregroundStyle(statusColor)
-                    .frame(width: 14, height: 14)
-            }
-
-            // Task subject
-            Text(task.subject)
-                .font(.caption)
-                .foregroundStyle(task.status == .completed ? .secondary : .primary)
-                .strikethrough(task.status == .completed)
-                .lineLimit(1)
-
-            Spacer()
-
-            // Active form label for in-progress tasks
-            if task.status == .in_progress, let activeForm = task.activeForm {
-                Text(activeForm)
-                    .font(.caption2)
-                    .foregroundStyle(.orange)
-                    .lineLimit(1)
-            }
-        }
-        .padding(.vertical, 4)
-        .padding(.horizontal, 4)
-        .background(
-            task.status == .in_progress
-                ? Color.orange.opacity(0.08)
-                : Color.clear,
-            in: RoundedRectangle(cornerRadius: 4)
-        )
-    }
-}

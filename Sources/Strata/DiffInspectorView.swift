@@ -4,24 +4,38 @@ import SwiftUI
 
 struct DiffInspectorView: View {
     let changes: [FileChange]
+    let tasks: [SessionTask]
     @Binding var isPresented: Bool
+
+    @State private var changesExpanded = true
+    @State private var tasksExpanded = true
+
+    private var activeTasks: [SessionTask] {
+        tasks.filter { $0.status != .deleted }
+            .sorted { t1, t2 in
+                let order: [SessionTask.TaskStatus] = [.in_progress, .pending, .completed]
+                let i1 = order.firstIndex(of: t1.status) ?? 99
+                let i2 = order.firstIndex(of: t2.status) ?? 99
+                if i1 != i2 { return i1 < i2 }
+                return (Int(t1.id) ?? 0) < (Int(t2.id) ?? 0)
+            }
+    }
+
+    private var completedCount: Int {
+        activeTasks.filter { $0.status == .completed }.count
+    }
+
+    private var inProgressTask: SessionTask? {
+        activeTasks.first { $0.status == .in_progress }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Header
-            HStack(spacing: 8) {
-                Label("Changes", systemImage: "doc.text.magnifyingglass")
+            // Top header with close button
+            HStack {
+                Text("Workspace")
                     .font(.headline)
-
-                Text("\(changes.count)")
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 2)
-                    .background(Color.orange, in: Capsule())
-
                 Spacer()
-
                 Button {
                     isPresented = false
                 } label: {
@@ -35,16 +49,254 @@ struct DiffInspectorView: View {
 
             Divider()
 
-            // File changes list
+            // Split content
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 12) {
-                    ForEach(changes) { change in
-                        FileChangeCard(change: change)
+                VStack(alignment: .leading, spacing: 0) {
+                    // MARK: - Changes Section
+                    InspectorSection(
+                        title: "Changes",
+                        icon: "doc.text.magnifyingglass",
+                        count: changes.count,
+                        countColor: .orange,
+                        isExpanded: $changesExpanded
+                    ) {
+                        if changes.isEmpty {
+                            Text("No file changes yet")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .padding(.vertical, 20)
+                        } else {
+                            LazyVStack(alignment: .leading, spacing: 10) {
+                                ForEach(changes) { change in
+                                    FileChangeCard(change: change)
+                                }
+                            }
+                        }
+                    }
+
+                    Divider()
+                        .padding(.vertical, 8)
+
+                    // MARK: - Tasks Section
+                    InspectorSection(
+                        title: "Todos",
+                        icon: "checklist",
+                        count: activeTasks.count,
+                        countColor: .teal,
+                        isExpanded: $tasksExpanded,
+                        trailing: {
+                            if !activeTasks.isEmpty {
+                                Text("\(completedCount)/\(activeTasks.count)")
+                                    .font(.caption2.monospacedDigit())
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    ) {
+                        if activeTasks.isEmpty {
+                            Text("No tasks yet")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .padding(.vertical, 20)
+                        } else {
+                            VStack(alignment: .leading, spacing: 2) {
+                                // Progress bar
+                                if !activeTasks.isEmpty {
+                                    TaskProgressIndicator(
+                                        completed: completedCount,
+                                        total: activeTasks.count,
+                                        inProgressTask: inProgressTask
+                                    )
+                                    .padding(.bottom, 8)
+                                }
+
+                                // Task list
+                                ForEach(activeTasks) { task in
+                                    InspectorTaskRow(task: task)
+                                }
+                            }
+                        }
                     }
                 }
                 .padding(12)
             }
         }
+    }
+}
+
+// MARK: - Inspector Section
+
+private struct InspectorSection<Content: View, Trailing: View>: View {
+    let title: String
+    let icon: String
+    let count: Int
+    let countColor: Color
+    @Binding var isExpanded: Bool
+    @ViewBuilder let trailing: () -> Trailing
+    @ViewBuilder let content: () -> Content
+
+    init(
+        title: String,
+        icon: String,
+        count: Int,
+        countColor: Color,
+        isExpanded: Binding<Bool>,
+        @ViewBuilder trailing: @escaping () -> Trailing = { EmptyView() },
+        @ViewBuilder content: @escaping () -> Content
+    ) {
+        self.title = title
+        self.icon = icon
+        self.count = count
+        self.countColor = countColor
+        self._isExpanded = isExpanded
+        self.trailing = trailing
+        self.content = content
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Section header
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isExpanded.toggle()
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                        .frame(width: 10)
+
+                    Image(systemName: icon)
+                        .font(.caption)
+                        .foregroundStyle(countColor)
+
+                    Text(title)
+                        .font(.subheadline.weight(.medium))
+
+                    if count > 0 {
+                        Text("\(count)")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(countColor, in: Capsule())
+                    }
+
+                    Spacer()
+
+                    trailing()
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            // Section content
+            if isExpanded {
+                content()
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+    }
+}
+
+// MARK: - Task Progress Indicator
+
+private struct TaskProgressIndicator: View {
+    let completed: Int
+    let total: Int
+    let inProgressTask: SessionTask?
+
+    private var progress: Double {
+        guard total > 0 else { return 0 }
+        return Double(completed) / Double(total)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            // Progress bar
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(Color.primary.opacity(0.08))
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(Color.teal)
+                        .frame(width: geo.size.width * min(progress, 1.0))
+                        .animation(.easeInOut(duration: 0.3), value: progress)
+                }
+            }
+            .frame(height: 6)
+
+            // Active task label
+            if let active = inProgressTask {
+                HStack(spacing: 4) {
+                    ProgressView()
+                        .controlSize(.mini)
+                    Text(active.activeForm ?? active.subject)
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                        .lineLimit(1)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Inspector Task Row
+
+private struct InspectorTaskRow: View {
+    let task: SessionTask
+
+    private var statusIcon: String {
+        switch task.status {
+        case .completed: return "checkmark.circle.fill"
+        case .in_progress: return "circle.dotted"
+        case .pending: return "circle"
+        case .deleted: return "xmark.circle"
+        }
+    }
+
+    private var statusColor: Color {
+        switch task.status {
+        case .completed: return .green
+        case .in_progress: return .orange
+        case .pending: return .secondary
+        case .deleted: return .red
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            // Status icon
+            if task.status == .in_progress {
+                ProgressView()
+                    .controlSize(.mini)
+                    .frame(width: 14, height: 14)
+            } else {
+                Image(systemName: statusIcon)
+                    .font(.system(size: 12))
+                    .foregroundStyle(statusColor)
+                    .frame(width: 14, height: 14)
+            }
+
+            // Task subject
+            Text(task.subject)
+                .font(.caption)
+                .foregroundStyle(task.status == .completed ? .secondary : .primary)
+                .strikethrough(task.status == .completed)
+                .lineLimit(2)
+
+            Spacer()
+        }
+        .padding(.vertical, 4)
+        .padding(.horizontal, 6)
+        .background(
+            task.status == .in_progress
+                ? Color.orange.opacity(0.1)
+                : Color.clear,
+            in: RoundedRectangle(cornerRadius: 4)
+        )
     }
 }
 
