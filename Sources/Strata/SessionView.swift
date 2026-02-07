@@ -10,6 +10,8 @@ struct SessionView: View {
     @State private var showSkills: Bool = false
     @State private var showMemoryViewer: Bool = false
     @State private var showMemoryTimeline: Bool = false
+    @State private var showAgentPanel: Bool = false
+    @State private var activeAgent: CustomAgent?  // Currently running agent (for UI indication)
     @FocusState private var inputFocused: Bool
     @State private var triggerInputFocus: Bool = false
     @State private var suggestionIndex: Int = 0
@@ -474,6 +476,13 @@ struct SessionView: View {
             ToolbarItem(placement: .primaryAction) {
                 HStack(spacing: 4) {
                     Button {
+                        showAgentPanel.toggle()
+                    } label: {
+                        Image(systemName: "person.crop.rectangle.stack")
+                    }
+                    .help("Agents (Cmd+Shift+A)")
+
+                    Button {
                         showMemoryTimeline.toggle()
                     } label: {
                         Image(systemName: "clock.arrow.circlepath")
@@ -560,10 +569,17 @@ struct SessionView: View {
         .sheet(isPresented: $showMemoryViewer) {
             MemoryViewerPanel(workingDirectory: session.workingDirectory)
         }
+        .sheet(isPresented: $showAgentPanel) {
+            AgentPanel { agent, prompt in
+                runAgent(agent, with: prompt)
+                showAgentPanel = false
+            }
+        }
         .focusedSceneValue(\.diffPanelToggle, $showDiffPanel)
         .focusedSceneValue(\.settingsToggle, $showSettings)
         .focusedSceneValue(\.skillsPanelToggle, $showSkills)
         .focusedSceneValue(\.memoryViewerToggle, $showMemoryViewer)
+        .focusedSceneValue(\.agentPanelToggle, $showAgentPanel)
         .tint(session.settings.theme.accentColor.color)
         .onReceive(NotificationCenter.default.publisher(for: .toggleDiffPanel)) { _ in
             showDiffPanel.toggle()
@@ -589,6 +605,25 @@ struct SessionView: View {
         guard !text.isEmpty else { return }
         inputText = ""
         session.send(text)
+    }
+
+    private func runAgent(_ agent: CustomAgent, with prompt: String) {
+        // Apply agent settings temporarily
+        session.permissionMode = agent.permissionMode
+        session.settings.customSystemPrompt = agent.systemPrompt
+
+        // Build the full prompt with agent context
+        let agentPrompt = """
+        [Running as: \(agent.name)]
+
+        \(prompt)
+        """
+
+        // Track active agent for UI
+        activeAgent = agent
+
+        // Send the message
+        session.send(agentPrompt)
     }
 
     private func pickDirectory() {

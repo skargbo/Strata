@@ -10,6 +10,7 @@ struct AppCommands: Commands {
     @FocusedValue(\.skillsPanelToggle) var skillsPanelToggle
     @FocusedValue(\.memoryViewerToggle) var memoryViewerToggle
     @FocusedValue(\.schedulesPanelToggle) var schedulesPanelToggle
+    @FocusedValue(\.agentPanelToggle) var agentPanelToggle
 
     var body: some Commands {
         // Replace the default New Window command
@@ -95,6 +96,12 @@ struct AppCommands: Commands {
                 memoryViewerToggle?.wrappedValue.toggle()
             }
             .keyboardShortcut("m", modifiers: [.command, .shift])
+            .disabled(manager.selectedSession == nil)
+
+            Button("Agents") {
+                agentPanelToggle?.wrappedValue.toggle()
+            }
+            .keyboardShortcut("a", modifiers: [.command, .shift])
             .disabled(manager.selectedSession == nil)
 
             Button("Scheduled Prompts") {
