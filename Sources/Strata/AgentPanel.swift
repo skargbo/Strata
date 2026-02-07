@@ -230,7 +230,11 @@ private struct AgentDetailView: View {
                     Text("Run Agent")
                         .font(.headline)
 
-                    TextField("What should this agent work on?", text: $promptText, axis: .vertical)
+                    Text("Enter your task or question for this agent:")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    TextField(placeholderForAgent, text: $promptText, axis: .vertical)
                         .textFieldStyle(.plain)
                         .padding(12)
                         .background(Color(nsColor: .controlBackgroundColor))
@@ -327,6 +331,18 @@ private struct AgentDetailView: View {
         case "acceptEdits": return "bolt"
         case "bypassPermissions": return "bolt.shield"
         default: return "hand.raised"
+        }
+    }
+
+    private var placeholderForAgent: String {
+        switch agent.name {
+        case "Code Reviewer": return "e.g., Review src/Session.swift for bugs"
+        case "Test Writer": return "e.g., Write tests for the UserService class"
+        case "Doc Generator": return "e.g., Document the API endpoints in this project"
+        case "Bug Hunter": return "e.g., Find security issues in the auth module"
+        case "Refactorer": return "e.g., Refactor the database queries for clarity"
+        case "Explainer": return "e.g., Explain how the caching system works"
+        default: return "e.g., Describe what you want this agent to do..."
         }
     }
 }
