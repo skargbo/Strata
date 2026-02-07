@@ -2,6 +2,22 @@
 
 All notable changes to Strata are documented here.
 
+## [1.5.0] - 2026-02-06
+
+### Added
+- **Visual Task Panel** in Workspace inspector showing all tasks with status icons
+- **Thinking Time Indicator** displays elapsed time while Claude is responding ("Thinking... for 7s")
+- **Improved Context Bar** shows active vs cached tokens separately for accurate usage display
+
+### Changed
+- Workspace inspector now has two collapsible sections: Changes and Todos
+- Context bar color now based on active (uncached) tokens only
+- Compact button only appears when active context is high, not total
+- Tasks sorted by status: in-progress first, then pending, then completed
+
+### Fixed
+- Context usage no longer shows misleading 100%+ when heavily cached
+
 ## [1.4.0] - 2026-02-05
 
 ### Added
