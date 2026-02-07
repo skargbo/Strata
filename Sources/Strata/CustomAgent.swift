@@ -68,7 +68,7 @@ struct CustomAgent: Identifiable, Codable, Hashable {
             name: "Code Reviewer",
             description: "Reviews code for bugs, style issues, and improvements without making changes",
             icon: "eye.circle.fill",
-            permissionMode: "plan",
+            permissionMode: "default",  // Read-only enforced by tool restrictions
             systemPrompt: """
             You are a senior code reviewer. Analyze code thoroughly for:
             - Potential bugs and edge cases
@@ -78,7 +78,7 @@ struct CustomAgent: Identifiable, Codable, Hashable {
             - Best practices violations
 
             Provide specific, actionable feedback with line references.
-            Never make edits - only provide analysis and suggestions.
+            You can only read files - do not attempt to edit or write files.
             """,
             allowedTools: [.read, .glob, .grep]
         ),
@@ -125,7 +125,7 @@ struct CustomAgent: Identifiable, Codable, Hashable {
             name: "Bug Hunter",
             description: "Analyzes code to find potential bugs and vulnerabilities",
             icon: "ladybug.fill",
-            permissionMode: "plan",
+            permissionMode: "default",  // Read-only enforced by tool restrictions
             systemPrompt: """
             You are a security researcher and bug hunter. Analyze code for:
 
@@ -138,7 +138,7 @@ struct CustomAgent: Identifiable, Codable, Hashable {
             - Error handling weaknesses
 
             Report findings with severity levels and specific remediation steps.
-            Do not make changes - only analyze and report.
+            You can only read files - do not attempt to edit or write files.
             """,
             allowedTools: [.read, .glob, .grep]
         ),
@@ -166,7 +166,7 @@ struct CustomAgent: Identifiable, Codable, Hashable {
             name: "Explainer",
             description: "Explains code in simple terms for learning",
             icon: "lightbulb.fill",
-            permissionMode: "plan",
+            permissionMode: "default",  // Read-only enforced by tool restrictions
             systemPrompt: """
             You are a patient teacher explaining code to someone learning to program.
 
@@ -178,7 +178,7 @@ struct CustomAgent: Identifiable, Codable, Hashable {
             - Explain WHY, not just WHAT
             - Point out common pitfalls to avoid
 
-            Never make changes - focus entirely on teaching and explanation.
+            You can only read files - focus entirely on teaching and explanation.
             """,
             allowedTools: [.read, .glob, .grep]
         )

@@ -433,11 +433,14 @@ private struct AgentEditorSheet: View {
 
                 Section("Behavior") {
                     Picker("Permission Mode", selection: $agent.permissionMode) {
-                        Text("Ask Permission").tag("default")
+                        Text("Ask Permission (Recommended)").tag("default")
                         Text("Auto-accept Edits").tag("acceptEdits")
-                        Text("Read-only (Plan Mode)").tag("plan")
-                        Text("Full Autonomy").tag("bypassPermissions")
+                        Text("Full Autonomy (Dangerous)").tag("bypassPermissions")
                     }
+
+                    Text("Tip: For read-only agents, use 'Ask Permission' and only enable Read/Glob/Grep tools.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
 
                     Picker("Model Override", selection: Binding(
                         get: { agent.model ?? "" },
