@@ -2,6 +2,21 @@
 
 All notable changes to Strata are documented here.
 
+## [1.5.1] - 2026-02-07
+
+### Added
+- **Custom Agents** (Cmd+Shift+A) for creating reusable AI assistants with specific roles
+- **21 Built-in Agents** including 12 developer tools and 9 small business agents
+- **Agent Editor** for creating agents with custom system prompts, permission modes, and tool restrictions
+- **Import/Export Agents** as JSON files for sharing agent configurations
+- **Agent Mode Indicator** shows active agent with easy exit button
+- **Developer Agents**: Code Explainer, Test Writer, Bug Hunter, Security Reviewer, Refactoring Assistant, Documentation Writer, Code Reviewer, Performance Optimizer, Dependency Updater, Git Helper, API Designer, Database Optimizer
+- **Business Agents**: Marketing Writer, Social Media Manager, Business Email Writer, Financial Analyst, HR Assistant, Sales Assistant, Customer Support Writer, Contract Reviewer, Meeting Notes
+
+### Changed
+- Tools menu now includes Agents panel shortcut
+- Session view supports agent mode with custom system prompts and permission settings
+
 ## [1.5.0] - 2026-02-06
 
 ### Added
