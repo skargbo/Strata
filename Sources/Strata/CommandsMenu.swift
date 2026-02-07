@@ -11,6 +11,7 @@ struct AppCommands: Commands {
     @FocusedValue(\.memoryViewerToggle) var memoryViewerToggle
     @FocusedValue(\.schedulesPanelToggle) var schedulesPanelToggle
     @FocusedValue(\.agentPanelToggle) var agentPanelToggle
+    @FocusedValue(\.mcpPanelToggle) var mcpPanelToggle
 
     var body: some Commands {
         // Replace the default New Window command
@@ -108,6 +109,11 @@ struct AppCommands: Commands {
                 schedulesPanelToggle?.wrappedValue.toggle()
             }
             .keyboardShortcut("h", modifiers: .command)
+
+            Button("MCP Servers") {
+                mcpPanelToggle?.wrappedValue.toggle()
+            }
+            .keyboardShortcut("e", modifiers: [.command, .shift])
 
             Divider()
 

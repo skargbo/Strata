@@ -40,7 +40,7 @@ struct AgentPanel: View {
         VStack(spacing: 0) {
             // Header with title and close button
             HStack {
-                Text("Agents")
+                Label("Agents", systemImage: "brain.head.profile")
                     .font(.headline)
 
                 Spacer()

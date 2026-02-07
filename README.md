@@ -65,6 +65,13 @@ Strata wraps [Claude Code](https://docs.anthropic.com/en/docs/claude-code) in a 
 - **Import/Export** — Share agent configurations as JSON files
 - **Agent mode indicator** — Visual indicator when running an agent with easy exit button
 
+### MCP Servers
+- **MCP panel** — Configure and manage Model Context Protocol servers via Cmd+Shift+E
+- **Server configuration** — Set command, arguments, and environment variables for each server
+- **Tool discovery** — Automatically lists tools available from connected servers
+- **Connection status** — Visual indicators showing server status (running, stopped, error)
+- **Import/Export** — Share MCP server configurations as JSON files
+
 ### Productivity
 - **Command palette** — Quick access to all actions via Cmd+K with fuzzy search
 - **Context usage bar** — Live token count with color-coded progress toward the context limit
@@ -236,6 +243,9 @@ Strata/
     ├── ScheduleManager.swift         # Schedule execution engine
     ├── SchedulesPanel.swift          # Scheduled prompts UI (Cmd+H)
     │
+    ├── MCPServer.swift               # MCP server config model and manager
+    ├── MCPPanel.swift                # MCP servers UI (Cmd+Shift+E)
+    │
     ├── SessionGroup.swift            # Session folder/group model
     │
     ├── PersistenceManager.swift      # File I/O, debounced saves
@@ -258,6 +268,7 @@ Strata/
 | Cmd+Shift+S | Open skills panel |
 | Cmd+Shift+A | Open agents panel |
 | Cmd+Shift+M | Open memory viewer |
+| Cmd+Shift+E | Open MCP servers panel |
 | Cmd+H | Open scheduled prompts |
 | Cmd+, | Session settings |
 | Ctrl+C | Cancel Claude response |

@@ -2,13 +2,22 @@ import SwiftUI
 
 // MARK: - Inspector Panel
 
+/// Indicates which section triggered the inspector to open
+enum InspectorFocus {
+    case changes
+    case todos
+    case none  // Manual toggle - keep previous state or collapse all
+}
+
 struct DiffInspectorView: View {
     let changes: [FileChange]
     let tasks: [SessionTask]
     @Binding var isPresented: Bool
+    var focus: InspectorFocus = .none
 
-    @State private var changesExpanded = true
-    @State private var tasksExpanded = true
+    @State private var changesExpanded = false
+    @State private var tasksExpanded = false
+    @State private var hasAppliedFocus = false
 
     private var activeTasks: [SessionTask] {
         tasks.filter { $0.status != .deleted }
@@ -120,6 +129,31 @@ struct DiffInspectorView: View {
                     }
                 }
                 .padding(12)
+            }
+        }
+        .onChange(of: focus) { _, newFocus in
+            applyFocus(newFocus)
+        }
+        .onAppear {
+            if !hasAppliedFocus {
+                applyFocus(focus)
+                hasAppliedFocus = true
+            }
+        }
+    }
+
+    private func applyFocus(_ newFocus: InspectorFocus) {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            switch newFocus {
+            case .changes:
+                changesExpanded = true
+                tasksExpanded = false
+            case .todos:
+                changesExpanded = false
+                tasksExpanded = true
+            case .none:
+                // Keep current state on manual toggle
+                break
             }
         }
     }

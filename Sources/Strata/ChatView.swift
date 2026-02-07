@@ -162,7 +162,7 @@ struct ThinkingIndicator: View {
                 .font(.callout)
 
             if elapsedSeconds > 0 {
-                Text("for \(elapsedSeconds)s")
+                Text("for \(formattedElapsedTime)")
                     .foregroundStyle(.tertiary)
                     .font(.callout)
                     .monospacedDigit()
@@ -176,6 +176,21 @@ struct ThinkingIndicator: View {
         }
         .onChange(of: startedAt) {
             startTimer()
+        }
+    }
+
+    /// Formats elapsed time as "Xs", "Xm Ys", or "Xh Ym" depending on duration.
+    private var formattedElapsedTime: String {
+        if elapsedSeconds < 60 {
+            return "\(elapsedSeconds)s"
+        } else if elapsedSeconds < 3600 {
+            let minutes = elapsedSeconds / 60
+            let seconds = elapsedSeconds % 60
+            return "\(minutes)m \(seconds)s"
+        } else {
+            let hours = elapsedSeconds / 3600
+            let minutes = (elapsedSeconds % 3600) / 60
+            return "\(hours)h \(minutes)m"
         }
     }
 

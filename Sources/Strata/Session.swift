@@ -1,6 +1,39 @@
 import AppKit
 import Foundation
 
+/// Represents a session-level permission approval that auto-approves matching requests.
+struct SessionPermissionApproval: Hashable {
+    let toolName: String
+    let pathPattern: String?  // nil = all uses of tool, "*" suffix = prefix match
+
+    /// Check if this approval matches a tool request.
+    func matches(tool: String, path: String?) -> Bool {
+        guard tool == toolName else { return false }
+        guard let pattern = pathPattern else { return true }  // tool-wide approval
+        guard let path = path else { return pattern == "*" }
+
+        if pattern.hasSuffix("/*") {
+            // Prefix match (e.g., "/src/*" matches "/src/foo.swift")
+            let prefix = String(pattern.dropLast(2))
+            return path.hasPrefix(prefix)
+        }
+        // Exact match
+        return path == pattern
+    }
+
+    /// Human-readable description of what this approval covers.
+    var displayDescription: String {
+        if let pattern = pathPattern {
+            if pattern.hasSuffix("/*") {
+                let dir = String(pattern.dropLast(2))
+                return "All \(toolName) in \((dir as NSString).lastPathComponent)/"
+            }
+            return "\(toolName): \((pattern as NSString).lastPathComponent)"
+        }
+        return "All \(toolName) operations"
+    }
+}
+
 /// Represents a single Claude Code conversation session.
 @Observable
 final class Session: Identifiable {
@@ -48,6 +81,9 @@ final class Session: Identifiable {
 
     // Permission state - queue to handle multiple rapid requests
     var pendingPermissions: [PermissionRequest] = []
+
+    // Session-level permission approvals (e.g., "allow all Bash" or "allow Edit in /src/*")
+    var sessionApprovals: Set<SessionPermissionApproval> = []
 
     var currentPermission: PermissionRequest? {
         pendingPermissions.first
@@ -232,6 +268,7 @@ final class Session: Identifiable {
         totalCost = 0
         tasks.removeAll()
         pendingPermissions.removeAll()
+        sessionApprovals.removeAll()
         memoryEvents.removeAll()
         contextBreakdown = ContextBreakdown()
         filesRead.removeAll()
@@ -256,6 +293,30 @@ final class Session: Identifiable {
             focusInstructions: focusInstructions
         )
     }
+
+    // MARK: - MCP Server Management
+
+    /// Connect to an MCP server.
+    func connectMCPServer(_ config: MCPServerConfig) {
+        MCPManager.shared.updateStatus(config.id, status: .starting)
+        runner.connectMCPServer(config: config)
+    }
+
+    /// Disconnect from an MCP server.
+    func disconnectMCPServer(_ config: MCPServerConfig) {
+        runner.disconnectMCPServer(serverId: config.id)
+        MCPManager.shared.updateStatus(config.id, status: .stopped)
+        MCPManager.shared.updateTools(config.id, tools: [])
+    }
+
+    /// Auto-connect all enabled MCP servers that have autoStart set.
+    func autoConnectMCPServers() {
+        for server in MCPManager.shared.autoStartServers {
+            connectMCPServer(server)
+        }
+    }
+
+    // MARK: - Skills
 
     /// Scan for available skills and cache the results.
     func scanSkills(force: Bool = false) {
@@ -313,14 +374,40 @@ final class Session: Identifiable {
     }
 
     /// Respond to the current (first) pending permission request.
-    func respondToPermission(allow: Bool) {
+    /// - Parameters:
+    ///   - allow: Whether to allow this request
+    ///   - forSession: If true, also approve similar future requests for this session
+    ///   - approval: The approval scope to add if forSession is true
+    func respondToPermission(allow: Bool, forSession: Bool = false, approval: SessionPermissionApproval? = nil) {
         guard let request = pendingPermissions.first else { return }
+
+        // If allowing for the session, store the approval
+        if allow && forSession, let approval = approval {
+            sessionApprovals.insert(approval)
+        }
+
         runner.respondToPermission(
             requestId: request.id,
             allow: allow,
             message: allow ? nil : "User denied permission"
         )
         pendingPermissions.removeFirst()
+    }
+
+    /// Check if a permission request is already approved for this session.
+    func isApprovedForSession(_ request: PermissionRequest) -> Bool {
+        let path = request.inputSummary["file_path"] ?? request.inputSummary["path"]
+        for approval in sessionApprovals {
+            if approval.matches(tool: request.toolName, path: path) {
+                return true
+            }
+        }
+        return false
+    }
+
+    /// Clear all session-level permission approvals.
+    func clearSessionApprovals() {
+        sessionApprovals.removeAll()
     }
 
     // MARK: - Private
@@ -446,8 +533,28 @@ final class Session: Identifiable {
 
         runner.onPermissionRequest = { [weak self] request in
             guard let self = self else { return }
+
+            // Check if already approved for this session
+            if self.isApprovedForSession(request) {
+                // Auto-approve without showing UI
+                self.runner.respondToPermission(
+                    requestId: request.id,
+                    allow: true,
+                    message: nil
+                )
+                return
+            }
+
             self.pendingPermissions.append(request)
             self.playNotificationIfEnabled()
+        }
+
+        runner.onMCPStatus = { serverId, status, tools, error in
+            MCPManager.shared.updateStatus(serverId, status: status)
+            if let tools = tools {
+                MCPManager.shared.updateTools(serverId, tools: tools)
+            }
+            MCPManager.shared.updateError(serverId, error: error)
         }
     }
 

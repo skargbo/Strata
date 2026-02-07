@@ -2,6 +2,30 @@
 
 All notable changes to Strata are documented here.
 
+## [1.5.2] - 2026-02-07
+
+### Added
+- **MCP Server Support** (Cmd+Shift+E) for connecting to Model Context Protocol servers
+- **MCP Panel** to configure, connect, and manage MCP servers
+- **MCP Server Catalog** — 23 built-in presets across 7 categories (Database, Filesystem, Development, Search, Communication, Productivity, Third Party)
+- **Third-Party MCP Servers** — Official integrations from Atlassian, AWS, Notion, Linear, Stripe, Apify, Cloudflare, Raygun
+- **MCP Tool Discovery** — automatically lists tools from connected servers
+- **Context-Aware Suggestions** — unified suggestion chips for skills, agents, and MCP servers based on conversation
+- **Agent Suggestions** — suggests relevant agents based on what you're discussing
+- **MCP Suggestions** — suggests MCP servers to connect based on conversation context
+- **Session-Based Permissions** — "Allow for Session" button to reduce permission fatigue
+- **Permission Scopes** — choose to allow this file, parent directory, or all tool operations
+- **Auto-Approval** — approved permissions auto-apply to future matching requests
+
+### Changed
+- Agent icon updated to brain.head.profile for better identification
+- Agent indicator bar now uses purple color scheme
+- Workspace panel now expands only the relevant section when opened (Changes or Todos)
+- Toolbar button opens workspace panel with the section that has content
+- Thinking time now shows minutes/hours for long operations (e.g., "2m 30s", "1h 5m")
+- Permission dialog now has three buttons: Deny, Allow for Session, Allow
+- Permission scope picker shows options based on tool type (file path vs command)
+
 ## [1.5.1] - 2026-02-07
 
 ### Added

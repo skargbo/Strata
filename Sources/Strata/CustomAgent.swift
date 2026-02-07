@@ -20,6 +20,16 @@ struct CustomAgent: Identifiable, Codable, Hashable {
     var createdAt: Date = Date()
     var updatedAt: Date = Date()
 
+    /// Keywords extracted from name, description, and system prompt for context-aware suggestions
+    var keywords: Set<String> {
+        let stopWords: Set<String> = ["the", "a", "an", "and", "or", "to", "for", "with", "from", "in", "on", "of", "is", "are", "was", "were", "be", "been", "being", "have", "has", "had", "do", "does", "did", "will", "would", "could", "should", "may", "might", "must", "can", "this", "that", "these", "those", "it", "its", "you", "your", "i", "my", "we", "our", "they", "their", "not", "no", "yes", "if", "then", "else", "when", "where", "what", "why", "how", "all", "each", "every", "any", "some", "only", "just", "also", "about", "into", "over", "after", "before", "between", "under", "again", "further", "once"]
+        let text = "\(name) \(description) \(systemPrompt)"
+        let words = text.lowercased()
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { $0.count > 2 && !stopWords.contains($0) }
+        return Set(words)
+    }
+
     /// Tools that can be enabled/disabled for an agent
     enum AgentTool: String, Codable, CaseIterable, Identifiable {
         case read = "Read"

@@ -6,11 +6,13 @@ struct SessionView: View {
     @Binding var appearanceMode: AppearanceMode
     @State private var inputText: String = ""
     @State private var showDiffPanel: Bool = false
+    @State private var inspectorFocus: InspectorFocus = .none
     @State private var showSettings: Bool = false
     @State private var showSkills: Bool = false
     @State private var showMemoryViewer: Bool = false
     @State private var showMemoryTimeline: Bool = false
     @State private var showAgentPanel: Bool = false
+    @State private var showMCPPanel: Bool = false
     @State private var activeAgent: CustomAgent?  // Currently running agent (for UI indication)
     @FocusState private var inputFocused: Bool
     @State private var triggerInputFocus: Bool = false
@@ -301,6 +303,7 @@ struct SessionView: View {
                     messageSpacing: session.settings.theme.density.messageSpacing,
                     bodyFontSize: session.settings.theme.fontSize.bodySize,
                     onFileChangeTapped: { _ in
+                        inspectorFocus = .changes
                         showDiffPanel = true
                     }
                 )
@@ -360,13 +363,29 @@ struct SessionView: View {
                 }
             }
 
-            // Skill suggestion chips
+            // Context-aware suggestion chips (skills, agents, MCP servers)
             if !session.isResponding, !session.messages.isEmpty {
-                let suggested = session.suggestedSkills()
-                if !suggested.isEmpty {
-                    SkillSuggestionChips(suggestions: suggested) { skill in
-                        session.sendSkill(skill, arguments: "")
-                    }
+                let suggestedSkills = session.suggestedSkills()
+                let suggestedAgents = activeAgent == nil ? session.suggestedAgents() : []
+                let suggestedMCP = session.suggestedMCPServers()
+
+                if !suggestedSkills.isEmpty || !suggestedAgents.isEmpty || !suggestedMCP.isEmpty {
+                    SuggestionChips(
+                        skills: suggestedSkills,
+                        agents: suggestedAgents,
+                        mcpServers: suggestedMCP,
+                        onSelectSkill: { skill in
+                            session.sendSkill(skill, arguments: "")
+                        },
+                        onSelectAgent: { agent in
+                            activateAgent(agent)
+                        },
+                        onConnectMCP: { preset in
+                            let config = preset.toConfig()
+                            MCPManager.shared.add(config)
+                            session.connectMCPServer(config)
+                        }
+                    )
                 }
             }
 
@@ -375,11 +394,11 @@ struct SessionView: View {
             // Active agent indicator
             if let agent = activeAgent {
                 HStack(spacing: 8) {
-                    Image(systemName: agent.icon)
-                        .foregroundStyle(.orange)
-                    Text("Running as: \(agent.name)")
+                    Image(systemName: "brain.head.profile")
+                        .foregroundStyle(.purple)
+                    Text("Agent: \(agent.name)")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .fontWeight(.medium)
 
                     Spacer()
 
@@ -388,7 +407,7 @@ struct SessionView: View {
                     } label: {
                         HStack(spacing: 4) {
                             Image(systemName: "xmark.circle.fill")
-                            Text("Exit Agent")
+                            Text("Exit")
                         }
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -398,7 +417,7 @@ struct SessionView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 6)
-                .background(Color.orange.opacity(0.1))
+                .background(Color.purple.opacity(0.1))
             }
 
             // Input bar
@@ -490,7 +509,8 @@ struct SessionView: View {
             DiffInspectorView(
                 changes: currentFileChanges,
                 tasks: Array(session.tasks.values),
-                isPresented: $showDiffPanel
+                isPresented: $showDiffPanel,
+                focus: inspectorFocus
             )
             .inspectorColumnWidth(min: 280, ideal: 380, max: 550)
         }
@@ -507,7 +527,7 @@ struct SessionView: View {
                     Button {
                         showAgentPanel.toggle()
                     } label: {
-                        Image(systemName: "person.crop.rectangle.stack")
+                        Image(systemName: "brain.head.profile")
                     }
                     .help("Agents (Cmd+Shift+A)")
 
@@ -541,12 +561,21 @@ struct SessionView: View {
                     .help("Session Settings")
 
                     Button {
+                        if !showDiffPanel {
+                            // Opening - set focus based on content
+                            if !currentFileChanges.isEmpty {
+                                inspectorFocus = .changes
+                            } else if !session.tasks.isEmpty {
+                                inspectorFocus = .todos
+                            } else {
+                                inspectorFocus = .none
+                            }
+                        }
                         showDiffPanel.toggle()
                     } label: {
                         Image(systemName: "sidebar.right")
                     }
-                    .help("Toggle Changes Panel")
-                    .disabled(currentFileChanges.isEmpty)
+                    .help("Toggle Workspace Panel")
                 }
             }
         }
@@ -554,6 +583,14 @@ struct SessionView: View {
             suggestionIndex = 0
             let changes = currentFileChanges
             if !changes.isEmpty {
+                inspectorFocus = .changes
+                showDiffPanel = true
+            }
+        }
+        .onChange(of: session.tasks.count) {
+            // Open panel with todos focus when tasks are added
+            if !session.tasks.isEmpty && !showDiffPanel {
+                inspectorFocus = .todos
                 showDiffPanel = true
             }
         }
@@ -564,22 +601,8 @@ struct SessionView: View {
                 onPickDirectory: { pickDirectory() }
             )
         }
-        .sheet(isPresented: Binding(
-            get: { session.currentPermission != nil },
-            set: { if !$0 { session.respondToPermission(allow: false) } }
-        )) {
-            if let request = session.currentPermission {
-                PermissionRequestView(
-                    request: request,
-                    onAllow: {
-                        session.respondToPermission(allow: true)
-                    },
-                    onDeny: {
-                        session.respondToPermission(allow: false)
-                    },
-                    queueCount: session.pendingPermissions.count - 1
-                )
-            }
+        .sheet(isPresented: permissionSheetBinding) {
+            permissionSheetContent
         }
         .sheet(isPresented: $showSkills) {
             SkillsPanel(
@@ -604,11 +627,15 @@ struct SessionView: View {
                 showAgentPanel = false
             }
         }
+        .sheet(isPresented: $showMCPPanel) {
+            mcpPanelSheet
+        }
         .focusedSceneValue(\.diffPanelToggle, $showDiffPanel)
         .focusedSceneValue(\.settingsToggle, $showSettings)
         .focusedSceneValue(\.skillsPanelToggle, $showSkills)
         .focusedSceneValue(\.memoryViewerToggle, $showMemoryViewer)
         .focusedSceneValue(\.agentPanelToggle, $showAgentPanel)
+        .focusedSceneValue(\.mcpPanelToggle, $showMCPPanel)
         .tint(session.settings.theme.accentColor.color)
         .onReceive(NotificationCenter.default.publisher(for: .toggleDiffPanel)) { _ in
             showDiffPanel.toggle()
@@ -655,6 +682,13 @@ struct SessionView: View {
         session.send(agentPrompt)
     }
 
+    private func activateAgent(_ agent: CustomAgent) {
+        // Apply agent settings without sending a message
+        session.permissionMode = agent.permissionMode
+        session.settings.customSystemPrompt = agent.systemPrompt
+        activeAgent = agent
+    }
+
     private func exitAgentMode() {
         // Clear agent-specific settings
         session.settings.customSystemPrompt = ""
@@ -676,6 +710,43 @@ struct SessionView: View {
             session.workingDirectory = url.path
             let dirName = (url.path as NSString).lastPathComponent
             session.name = "Session \u{2014} \(dirName)"
+        }
+    }
+
+    private var mcpPanelSheet: some View {
+        MCPPanel(
+            onConnect: { config in
+                session.connectMCPServer(config)
+            },
+            onDisconnect: { config in
+                session.disconnectMCPServer(config)
+            }
+        )
+    }
+
+    private var permissionSheetBinding: Binding<Bool> {
+        Binding(
+            get: { session.currentPermission != nil },
+            set: { if !$0 { session.respondToPermission(allow: false) } }
+        )
+    }
+
+    @ViewBuilder
+    private var permissionSheetContent: some View {
+        if let request = session.currentPermission {
+            PermissionRequestView(
+                request: request,
+                onAllow: {
+                    session.respondToPermission(allow: true)
+                },
+                onDeny: {
+                    session.respondToPermission(allow: false)
+                },
+                onAllowForSession: { approval in
+                    session.respondToPermission(allow: true, forSession: true, approval: approval)
+                },
+                queueCount: session.pendingPermissions.count - 1
+            )
         }
     }
 

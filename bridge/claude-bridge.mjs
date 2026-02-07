@@ -6,6 +6,19 @@ import { query } from "@anthropic-ai/claude-agent-sdk";
 import { createInterface } from "readline";
 import { randomUUID } from "crypto";
 import { existsSync, statSync, realpathSync } from "fs";
+import { spawn } from "child_process";
+
+// MCP imports (optional - gracefully degrade if not available)
+let MCPClient = null;
+let StdioClientTransport = null;
+try {
+  const mcpSdk = await import("@modelcontextprotocol/sdk/client/index.js");
+  const mcpStdio = await import("@modelcontextprotocol/sdk/client/stdio.js");
+  MCPClient = mcpSdk.Client;
+  StdioClientTransport = mcpStdio.StdioClientTransport;
+} catch (e) {
+  // MCP SDK not available - that's OK, MCP features will be disabled
+}
 
 // --- Global error handlers to prevent crashes ---
 process.on("uncaughtException", (err) => {
@@ -40,6 +53,9 @@ const pendingPermissions = new Map(); // requestId -> { resolve, originalInput }
 let currentToolUse = null; // { toolName, input } — set in canUseTool, used in user event
 const toolUseQueue = []; // FIFO queue of { toolName, input } from assistant tool_use blocks
 let lastContextTokens = 0; // Total tokens in the conversation context (from last API call)
+
+// --- MCP State ---
+const mcpClients = new Map(); // serverId -> { client, transport, process, tools, config }
 
 // --- Helpers ---
 function emit(obj) {
@@ -78,6 +94,18 @@ rl.on("line", (line) => {
 
     case "cancel":
       handleCancel();
+      break;
+
+    case "mcp_connect":
+      handleMCPConnect(msg);
+      break;
+
+    case "mcp_disconnect":
+      handleMCPDisconnect(msg);
+      break;
+
+    case "mcp_list_tools":
+      handleMCPListTools();
       break;
   }
 });
@@ -333,6 +361,131 @@ function handleCancel() {
     currentQuery.close();
     currentQuery = null;
   }
+}
+
+// --- MCP Handlers ---
+
+async function handleMCPConnect(msg) {
+  const { serverId, name, command, args, env } = msg;
+
+  if (!MCPClient || !StdioClientTransport) {
+    emit({
+      type: "mcp_status",
+      serverId,
+      status: "error",
+      error: "MCP SDK not available. Run: npm install @modelcontextprotocol/sdk",
+    });
+    return;
+  }
+
+  // Check if already connected
+  if (mcpClients.has(serverId)) {
+    emit({
+      type: "mcp_status",
+      serverId,
+      status: "running",
+      tools: mcpClients.get(serverId).tools || [],
+    });
+    return;
+  }
+
+  try {
+    emit({
+      type: "mcp_status",
+      serverId,
+      status: "starting",
+    });
+
+    // Create the transport
+    const transport = new StdioClientTransport({
+      command,
+      args: args || [],
+      env: { ...process.env, ...(env || {}) },
+    });
+
+    // Create the client
+    const client = new MCPClient({
+      name: "strata",
+      version: "1.0.0",
+    });
+
+    // Connect
+    await client.connect(transport);
+
+    // List available tools
+    const toolsResult = await client.listTools();
+    const tools = (toolsResult.tools || []).map((t) => ({
+      name: t.name,
+      description: t.description || null,
+    }));
+
+    // Store the client
+    mcpClients.set(serverId, {
+      client,
+      transport,
+      tools,
+      config: { serverId, name, command, args, env },
+    });
+
+    emit({
+      type: "mcp_status",
+      serverId,
+      status: "running",
+      tools,
+    });
+  } catch (err) {
+    emit({
+      type: "mcp_status",
+      serverId,
+      status: "error",
+      error: err.message || String(err),
+    });
+  }
+}
+
+async function handleMCPDisconnect(msg) {
+  const { serverId } = msg;
+
+  const entry = mcpClients.get(serverId);
+  if (!entry) {
+    emit({
+      type: "mcp_status",
+      serverId,
+      status: "stopped",
+    });
+    return;
+  }
+
+  try {
+    await entry.client.close();
+  } catch (err) {
+    // Ignore close errors
+  }
+
+  mcpClients.delete(serverId);
+
+  emit({
+    type: "mcp_status",
+    serverId,
+    status: "stopped",
+  });
+}
+
+function handleMCPListTools() {
+  const allTools = [];
+  for (const [serverId, entry] of mcpClients) {
+    for (const tool of entry.tools || []) {
+      allTools.push({
+        serverId,
+        serverName: entry.config.name,
+        ...tool,
+      });
+    }
+  }
+  emit({
+    type: "mcp_tools_list",
+    tools: allTools,
+  });
 }
 
 // --- Input summarizer (keep payloads compact for the UI) ---

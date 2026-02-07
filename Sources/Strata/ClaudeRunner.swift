@@ -14,6 +14,7 @@ final class ClaudeRunner: @unchecked Sendable {
     var onComplete: ((String, String?, UsageInfo?) -> Void)?
     var onError: ((String) -> Void)?
     var onPermissionRequest: ((PermissionRequest) -> Void)?
+    var onMCPStatus: ((UUID, MCPServerStatus, [MCPTool]?, String?) -> Void)?  // serverId, status, tools, error
     var onDebug: ((String) -> Void)?
 
     private(set) var isRunning = false
@@ -252,6 +253,35 @@ final class ClaudeRunner: @unchecked Sendable {
         isRunning = false
     }
 
+    // MARK: - MCP Server Control
+
+    /// Connect to an MCP server.
+    func connectMCPServer(config: MCPServerConfig) {
+        let command: [String: Any] = [
+            "type": "mcp_connect",
+            "serverId": config.id.uuidString,
+            "name": config.name,
+            "command": config.command,
+            "args": config.args,
+            "env": config.env
+        ]
+        writeJSON(command)
+    }
+
+    /// Disconnect from an MCP server.
+    func disconnectMCPServer(serverId: UUID) {
+        let command: [String: Any] = [
+            "type": "mcp_disconnect",
+            "serverId": serverId.uuidString
+        ]
+        writeJSON(command)
+    }
+
+    /// Request the list of available tools from connected MCP servers.
+    func listMCPTools() {
+        writeJSON(["type": "mcp_list_tools"])
+    }
+
     /// Shut down the bridge process.
     func shutdown() {
         stdinPipe?.fileHandleForWriting.closeFile()
@@ -419,6 +449,37 @@ final class ClaudeRunner: @unchecked Sendable {
                 #endif
                 DispatchQueue.main.async { [weak self] in
                     self?.onDebug?(message)
+                }
+            }
+
+        case "mcp_status":
+            if let serverIdStr = json["serverId"] as? String,
+               let serverId = UUID(uuidString: serverIdStr),
+               let statusStr = json["status"] as? String {
+
+                let status: MCPServerStatus
+                switch statusStr {
+                case "stopped": status = .stopped
+                case "starting": status = .starting
+                case "running": status = .running
+                case "error": status = .error
+                default: status = .stopped
+                }
+
+                // Parse tools if present
+                var tools: [MCPTool]?
+                if let toolsArray = json["tools"] as? [[String: Any]] {
+                    tools = toolsArray.compactMap { dict -> MCPTool? in
+                        guard let name = dict["name"] as? String else { return nil }
+                        let desc = dict["description"] as? String
+                        return MCPTool(name: name, description: desc)
+                    }
+                }
+
+                let error = json["error"] as? String
+
+                DispatchQueue.main.async { [weak self] in
+                    self?.onMCPStatus?(serverId, status, tools, error)
                 }
             }
 
