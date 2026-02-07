@@ -372,6 +372,35 @@ struct SessionView: View {
 
             Divider()
 
+            // Active agent indicator
+            if let agent = activeAgent {
+                HStack(spacing: 8) {
+                    Image(systemName: agent.icon)
+                        .foregroundStyle(.orange)
+                    Text("Running as: \(agent.name)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    Spacer()
+
+                    Button {
+                        exitAgentMode()
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "xmark.circle.fill")
+                            Text("Exit Agent")
+                        }
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Clear agent settings and return to normal mode")
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 6)
+                .background(Color.orange.opacity(0.1))
+            }
+
             // Input bar
             HStack(spacing: 10) {
                 InputField(
@@ -624,6 +653,13 @@ struct SessionView: View {
 
         // Send the message
         session.send(agentPrompt)
+    }
+
+    private func exitAgentMode() {
+        // Clear agent-specific settings
+        session.settings.customSystemPrompt = ""
+        session.permissionMode = "default"
+        activeAgent = nil
     }
 
     private func pickDirectory() {
