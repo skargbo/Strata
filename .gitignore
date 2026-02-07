@@ -1,6 +1,7 @@
 # Swift / SPM
 .build/
 .swiftpm/
+build/
 *.xcodeproj/
 xcuserdata/
 DerivedData/

@@ -175,9 +175,21 @@ Strata uses the same authentication as the Claude Code CLI (OAuth). Alternativel
 
 ### 4. Build and run
 
+**Development (quick iteration):**
 ```bash
 swift build
 swift run Strata
+```
+
+**App Bundle (double-clickable .app):**
+```bash
+./scripts/build-app.sh --release
+open build/Strata.app
+```
+
+**Install to Applications:**
+```bash
+cp -R build/Strata.app /Applications/
 ```
 
 Or open in Xcode:
@@ -195,6 +207,10 @@ Then select the `Strata` scheme and run (Cmd+R).
 ```
 Strata/
 ├── Package.swift                    # Swift Package Manager manifest
+├── scripts/
+│   └── build-app.sh                 # Build .app bundle script
+├── Resources/
+│   └── Info.plist                   # App bundle metadata
 ├── bridge/
 │   ├── claude-bridge.mjs            # Node.js ↔ Claude SDK bridge
 │   └── package.json                 # Bridge dependencies
