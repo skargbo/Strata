@@ -19,3 +19,6 @@ bridge/node_modules/
 # IDE
 .vscode/
 .idea/
+
+# Local Claude rules (not tracked)
+CLAUDE.local.md
