@@ -12,6 +12,7 @@ struct AppCommands: Commands {
     @FocusedValue(\.schedulesPanelToggle) var schedulesPanelToggle
     @FocusedValue(\.agentPanelToggle) var agentPanelToggle
     @FocusedValue(\.mcpPanelToggle) var mcpPanelToggle
+    @FocusedValue(\.splitScreenToggle) var splitScreenToggle
 
     var body: some Commands {
         // Replace the default New Window command
@@ -116,6 +117,18 @@ struct AppCommands: Commands {
             .keyboardShortcut("e", modifiers: [.command, .shift])
 
             Divider()
+
+            Button {
+                splitScreenToggle?.wrappedValue.toggle()
+            } label: {
+                if let binding = splitScreenToggle, binding.wrappedValue {
+                    Text("Exit Split Screen")
+                } else {
+                    Text("Enter Split Screen")
+                }
+            }
+            .keyboardShortcut("\\", modifiers: [.command, .shift])
+            .disabled(splitScreenToggle == nil)
 
             Button {
                 focusedModeToggle?.wrappedValue.toggle()

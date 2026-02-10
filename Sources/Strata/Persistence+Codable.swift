@@ -9,6 +9,11 @@ struct SessionManifest: Codable {
     var sessionEntries: [SessionEntry]
     var selectedSessionID: UUID?
 
+    // Split-screen state (all optional for backward compatibility)
+    var isSplitScreen: Bool?
+    var splitSessionID: UUID?
+    var splitRatio: Double?
+
     struct SessionEntry: Codable {
         let id: UUID
         let type: SessionType

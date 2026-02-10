@@ -13,7 +13,10 @@ struct ContentView: View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             SidebarView(manager: manager)
         } detail: {
-            if let anySession = manager.selectedSession {
+            if manager.isSplitScreen {
+                SplitDetailView(manager: manager, appearanceMode: $manager.appearanceMode)
+                    .frame(maxWidth: .infinity)
+            } else if let anySession = manager.selectedSession {
                 Group {
                     switch anySession {
                     case .claude(let session):
@@ -38,19 +41,32 @@ struct ContentView: View {
             ToolbarItem(placement: .automatic) {
                 HStack(spacing: 4) {
                     Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            manager.toggleSplitScreen()
+                        }
+                    } label: {
+                        Label("Split View", systemImage: manager.isSplitScreen
+                            ? "rectangle.split.2x1.fill"
+                            : "rectangle.split.2x1")
+                    }
+                    .help("Split View (\u{2318}\u{21e7}\\)")
+                    .disabled(manager.selectedSession == nil || isFocusedMode)
+
+                    Button {
                         showSchedulesPanel = true
                     } label: {
-                        Image(systemName: "clock.badge")
+                        Label("Schedules", systemImage: "clock.badge")
                     }
                     .help("Scheduled Prompts (⌘H)")
 
                     Button {
                         showCommandPalette = true
                     } label: {
-                        Image(systemName: "wrench.and.screwdriver")
+                        Label("Palette", systemImage: "wrench.and.screwdriver")
                     }
                     .help("Command Palette (⌘K)")
                 }
+                .labelStyle(.titleAndIcon)
             }
         }
         .sheet(isPresented: $showSchedulesPanel) {
@@ -60,11 +76,23 @@ struct ContentView: View {
         .focusedSceneValue(\.focusedModeToggle, $isFocusedMode)
         .focusedSceneValue(\.commandPaletteToggle, $showCommandPalette)
         .focusedSceneValue(\.schedulesPanelToggle, $showSchedulesPanel)
+        .focusedSceneValue(\.splitScreenToggle, Binding(
+            get: { manager.isSplitScreen },
+            set: { newValue in
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    if newValue { manager.enterSplitScreen() }
+                    else { manager.exitSplitScreen() }
+                }
+            }
+        ))
         .onChange(of: isFocusedMode) { _, focused in
             withAnimation(.easeInOut(duration: 0.25)) {
                 if focused {
                     preFocusVisibility = columnVisibility
                     columnVisibility = .detailOnly
+                    if manager.isSplitScreen {
+                        manager.exitSplitScreen()
+                    }
                 } else {
                     columnVisibility = preFocusVisibility
                 }
@@ -146,6 +174,10 @@ struct ContentView: View {
             showSchedulesPanel = true
         case .selectSession(let id):
             manager.select(id)
+        case .toggleSplitScreen:
+            withAnimation(.easeInOut(duration: 0.2)) {
+                manager.toggleSplitScreen()
+            }
         }
     }
 }
@@ -160,6 +192,19 @@ extension FocusedValues {
     var focusedModeToggle: Binding<Bool>? {
         get { self[FocusedModeToggleKey.self] }
         set { self[FocusedModeToggleKey.self] = newValue }
+    }
+}
+
+// MARK: - FocusedValue for Split Screen
+
+struct SplitScreenToggleKey: FocusedValueKey {
+    typealias Value = Binding<Bool>
+}
+
+extension FocusedValues {
+    var splitScreenToggle: Binding<Bool>? {
+        get { self[SplitScreenToggleKey.self] }
+        set { self[SplitScreenToggleKey.self] = newValue }
     }
 }
 

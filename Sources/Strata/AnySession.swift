@@ -27,6 +27,11 @@ enum AnySession: Identifiable {
         }
     }
 
+    var isTerminal: Bool {
+        if case .terminal = self { return true }
+        return false
+    }
+
     var isActive: Bool {
         switch self {
         case .claude(let s): s.isResponding

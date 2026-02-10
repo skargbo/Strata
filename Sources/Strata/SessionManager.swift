@@ -8,8 +8,18 @@ final class SessionManager {
     var sessionGroupMap: [UUID: UUID] = [:]  // sessionId -> groupId
     var selectedSessionID: UUID?
 
+    // Split-screen state
+    var isSplitScreen: Bool = false
+    var splitSessionID: UUID?
+    var splitRatio: Double = 0.5
+
     var selectedSession: AnySession? {
         sessions.first { $0.id == selectedSessionID }
+    }
+
+    var splitSession: AnySession? {
+        guard let id = splitSessionID else { return nil }
+        return sessions.first { $0.id == id }
     }
 
     var appearanceMode: AppearanceMode = .dark {
@@ -65,6 +75,9 @@ final class SessionManager {
         }
 
         selectedSessionID = manifest.selectedSessionID ?? sessions.first?.id
+        isSplitScreen = manifest.isSplitScreen ?? false
+        splitSessionID = manifest.splitSessionID
+        splitRatio = manifest.splitRatio ?? 0.5
     }
 
     // MARK: - Claude Sessions
@@ -105,6 +118,9 @@ final class SessionManager {
         if selectedSessionID == anySession.id {
             selectedSessionID = sessions.last?.id
         }
+        if splitSessionID == anySession.id {
+            splitSessionID = nil
+        }
         saveManifest()
     }
 
@@ -118,6 +134,32 @@ final class SessionManager {
 
     func select(_ id: UUID?) {
         selectedSessionID = id
+    }
+
+    // MARK: - Split Screen
+
+    func enterSplitScreen() {
+        guard !isSplitScreen else { return }
+        isSplitScreen = true
+        saveManifest()
+    }
+
+    func exitSplitScreen() {
+        isSplitScreen = false
+        saveManifest()
+    }
+
+    func toggleSplitScreen() {
+        if isSplitScreen {
+            exitSplitScreen()
+        } else {
+            enterSplitScreen()
+        }
+    }
+
+    func selectSplitSession(_ id: UUID) {
+        splitSessionID = id
+        saveManifest()
     }
 
     // MARK: - Session Groups
@@ -204,7 +246,10 @@ final class SessionManager {
                                  groupId: groupId)
                 }
             },
-            selectedSessionID: selectedSessionID
+            selectedSessionID: selectedSessionID,
+            isSplitScreen: isSplitScreen ? true : nil,
+            splitSessionID: splitSessionID,
+            splitRatio: splitRatio != 0.5 ? splitRatio : nil
         )
         persistence.saveManifest(manifest)
     }

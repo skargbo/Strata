@@ -4,6 +4,7 @@ import SwiftUI
 struct SessionView: View {
     @Bindable var session: Session
     @Binding var appearanceMode: AppearanceMode
+    var hideToolbar: Bool = false
     @State private var inputText: String = ""
     @State private var showDiffPanel: Bool = false
     @State private var inspectorFocus: InspectorFocus = .none
@@ -522,26 +523,27 @@ struct SessionView: View {
             .inspectorColumnWidth(min: 280, ideal: 340, max: 450)
         }
         .toolbar {
+            if !hideToolbar {
             ToolbarItem(placement: .primaryAction) {
                 HStack(spacing: 4) {
                     Button {
                         showAgentPanel.toggle()
                     } label: {
-                        Image(systemName: "brain.head.profile")
+                        Label("Agents", systemImage: "brain.head.profile")
                     }
                     .help("Agents (Cmd+Shift+A)")
 
                     Button {
                         showMemoryTimeline.toggle()
                     } label: {
-                        Image(systemName: "clock.arrow.circlepath")
+                        Label("Timeline", systemImage: "clock.arrow.circlepath")
                     }
                     .help("Memory Timeline")
 
                     Button {
                         showMemoryViewer.toggle()
                     } label: {
-                        Image(systemName: "brain")
+                        Label("Memory", systemImage: "brain")
                     }
                     .help("Memory Viewer (Cmd+Shift+M)")
 
@@ -549,14 +551,14 @@ struct SessionView: View {
                         session.scanSkills(force: true)
                         showSkills.toggle()
                     } label: {
-                        Image(systemName: "wand.and.stars")
+                        Label("Skills", systemImage: "wand.and.stars")
                     }
                     .help("Skills Panel")
 
                     Button {
                         showSettings.toggle()
                     } label: {
-                        Image(systemName: "gearshape")
+                        Label("Settings", systemImage: "gearshape")
                     }
                     .help("Session Settings")
 
@@ -573,10 +575,12 @@ struct SessionView: View {
                         }
                         showDiffPanel.toggle()
                     } label: {
-                        Image(systemName: "sidebar.right")
+                        Label("Workspace", systemImage: "sidebar.right")
                     }
                     .help("Toggle Workspace Panel")
                 }
+                .labelStyle(.titleAndIcon)
+            }
             }
         }
         .onChange(of: session.messages.count) {

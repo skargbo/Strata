@@ -14,6 +14,10 @@ struct ChatView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: messageSpacing) {
+                    Color.clear
+                        .frame(height: 0)
+                        .id("scroll-top")
+
                     ForEach(messages) { message in
                         if message.role == .tool, let activity = message.toolActivity {
                             ToolActivityRow(activity: activity, defaultExpanded: toolCardsDefaultExpanded)

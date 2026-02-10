@@ -98,6 +98,17 @@ struct SidebarView: View {
             .tag(session.id)
             .draggable(session.id.uuidString)
             .contextMenu {
+                Button("Open in Split Pane") {
+                    manager.splitSessionID = session.id
+                    if !manager.isSplitScreen {
+                        manager.isSplitScreen = true
+                    }
+                    manager.saveManifest()
+                }
+                .disabled(session.id == manager.selectedSessionID)
+
+                Divider()
+
                 if !manager.groups.isEmpty {
                     Menu("Move to Group") {
                         Button("Ungrouped") {

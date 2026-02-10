@@ -17,6 +17,7 @@ enum CommandPaletteAction: Identifiable {
     case openSkillsPanel
     case openSchedules
     case selectSession(UUID)
+    case toggleSplitScreen
 
     var id: String {
         switch self {
@@ -34,6 +35,7 @@ enum CommandPaletteAction: Identifiable {
         case .openSkillsPanel: "openSkillsPanel"
         case .openSchedules: "openSchedules"
         case .selectSession(let id): "session-\(id)"
+        case .toggleSplitScreen: "toggleSplitScreen"
         }
     }
 }
@@ -77,6 +79,12 @@ struct CommandPaletteOverlay: View {
                 id: "new-terminal", title: "New Terminal Session", subtitle: nil,
                 icon: "terminal.fill", category: .quickActions,
                 action: .newTerminal, shortcut: "\u{2318}T"
+            ),
+            CommandPaletteItem(
+                id: "toggle-split", title: "Toggle Split Screen",
+                subtitle: "Show two sessions side by side",
+                icon: "rectangle.split.2x1", category: .quickActions,
+                action: .toggleSplitScreen, shortcut: "\u{2318}\u{21e7}\\"
             ),
             CommandPaletteItem(
                 id: "toggle-focus", title: "Toggle Focus Mode", subtitle: nil,
