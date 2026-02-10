@@ -58,6 +58,26 @@ final class ClaudeRunner: @unchecked Sendable {
                 safeEnv[key] = value
             }
         }
+        // Ensure PATH includes common Node.js locations — macOS app bundles
+        // inherit a minimal PATH (/usr/bin:/bin:/usr/sbin:/sbin) which typically
+        // excludes /usr/local/bin, Homebrew, and nvm paths.
+        var pathComponents = (safeEnv["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin")
+            .split(separator: ":").map(String.init)
+        let extraPaths = [
+            "/usr/local/bin",
+            "/opt/homebrew/bin",
+            "/opt/homebrew/sbin",
+        ]
+        for p in extraPaths where !pathComponents.contains(p) {
+            pathComponents.append(p)
+        }
+        // Include the directory of the resolved node binary
+        let nodeDir = (nodePath as NSString).deletingLastPathComponent
+        if !pathComponents.contains(nodeDir) {
+            pathComponents.insert(nodeDir, at: 0)
+        }
+        safeEnv["PATH"] = pathComponents.joined(separator: ":")
+
         safeEnv["TERM"] = "dumb"
         safeEnv["NO_COLOR"] = "1"
 
