@@ -2,6 +2,21 @@
 
 All notable changes to Strata are documented here.
 
+## [1.6.0] - 2026-02-10
+
+### Added
+- **Split View** (Cmd+Shift+\) for viewing two sessions side by side
+- **Session Picker** in split view right pane to choose which session to display
+- **Sidebar Context Menu** — "Open in Split Pane" to send any session to the right pane
+- **Draggable Divider** to resize split panes (20%–80% range, persisted)
+- **Text Labels** on all toolbar buttons for better discoverability
+- **Scroll Top Anchor** in chat view to ensure full scroll range
+
+### Changed
+- Split view state (active, session, ratio) persists across app restarts
+- Focus mode and split view are mutually exclusive
+- Toolbar buttons suppressed in split view right pane to prevent duplicates
+
 ## [1.5.3] - 2026-02-07
 
 ### Fixed
