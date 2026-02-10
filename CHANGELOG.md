@@ -2,6 +2,15 @@
 
 All notable changes to Strata are documented here.
 
+## [1.5.3] - 2026-02-07
+
+### Fixed
+- **App bundle node ENOENT error** — macOS app bundles inherit a minimal PATH missing `/usr/local/bin` and Homebrew paths, causing Claude Agent SDK to fail when spawning node subprocesses. Bridge process PATH now includes common Node.js locations.
+
+### Added
+- **App icon** (AppIcon.icns) for the bundled application
+- **Folder access usage descriptions** in Info.plist for Desktop, Documents, and Downloads
+
 ## [1.5.2] - 2026-02-07
 
 ### Added
