@@ -1,15 +1,20 @@
 import SwiftUI
 
-struct ContentView: View {
-    @Bindable var manager: SessionManager
-    @Bindable var scheduleManager: ScheduleManager
+public struct ContentView: View {
+    @Bindable public var manager: SessionManager
+    @Bindable public var scheduleManager: ScheduleManager
+
+    public init(manager: SessionManager, scheduleManager: ScheduleManager) {
+        self.manager = manager
+        self.scheduleManager = scheduleManager
+    }
     @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
     @State private var isFocusedMode: Bool = false
     @State private var preFocusVisibility: NavigationSplitViewVisibility = .automatic
     @State private var showCommandPalette: Bool = false
     @State private var showSchedulesPanel: Bool = false
 
-    var body: some View {
+    public var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             SidebarView(manager: manager)
         } detail: {

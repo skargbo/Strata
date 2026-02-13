@@ -5,19 +5,35 @@ import SwiftUI
 /// Indicates which section triggered the inspector to open
 enum InspectorFocus {
     case changes
+    case filesRead
     case todos
     case none  // Manual toggle - keep previous state or collapse all
 }
 
 struct DiffInspectorView: View {
     let changes: [FileChange]
+    var filesRead: [FileChange] = []
     let tasks: [SessionTask]
     @Binding var isPresented: Bool
     var focus: InspectorFocus = .none
 
     @State private var changesExpanded = false
+    @State private var filesReadExpanded = false
     @State private var tasksExpanded = false
     @State private var hasAppliedFocus = false
+
+    /// De-duplicated file reads grouped by path, with read count.
+    private var uniqueFilesRead: [(path: String, count: Int)] {
+        var counts: [String: Int] = [:]
+        var order: [String] = []
+        for read in filesRead {
+            if counts[read.filePath] == nil {
+                order.append(read.filePath)
+            }
+            counts[read.filePath, default: 0] += 1
+        }
+        return order.map { (path: $0, count: counts[$0]!) }
+    }
 
     private var activeTasks: [SessionTask] {
         tasks.filter { $0.status != .deleted }
@@ -87,6 +103,32 @@ struct DiffInspectorView: View {
                     Divider()
                         .padding(.vertical, 8)
 
+                    // MARK: - Files Read Section
+                    InspectorSection(
+                        title: "Files Read",
+                        icon: "eye",
+                        count: uniqueFilesRead.count,
+                        countColor: .secondary,
+                        isExpanded: $filesReadExpanded
+                    ) {
+                        if uniqueFilesRead.isEmpty {
+                            Text("No files read yet")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .padding(.vertical, 20)
+                        } else {
+                            LazyVStack(alignment: .leading, spacing: 2) {
+                                ForEach(uniqueFilesRead, id: \.path) { entry in
+                                    FileReadRow(path: entry.path, count: entry.count)
+                                }
+                            }
+                        }
+                    }
+
+                    Divider()
+                        .padding(.vertical, 8)
+
                     // MARK: - Tasks Section
                     InspectorSection(
                         title: "Todos",
@@ -147,9 +189,15 @@ struct DiffInspectorView: View {
             switch newFocus {
             case .changes:
                 changesExpanded = true
+                filesReadExpanded = false
+                tasksExpanded = false
+            case .filesRead:
+                changesExpanded = false
+                filesReadExpanded = true
                 tasksExpanded = false
             case .todos:
                 changesExpanded = false
+                filesReadExpanded = false
                 tasksExpanded = true
             case .none:
                 // Keep current state on manual toggle
@@ -449,6 +497,38 @@ struct FileChangeCard: View {
         )
         .onHover { isHovered = $0 }
         .animation(.easeInOut(duration: 0.15), value: isHovered)
+    }
+}
+
+// MARK: - File Read Row
+
+private struct FileReadRow: View {
+    let path: String
+    let count: Int
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "eye.fill")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .frame(width: 14)
+
+            Text(path.abbreviatingHome)
+                .font(.system(.caption, design: .monospaced))
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .foregroundStyle(.primary)
+
+            Spacer()
+
+            if count > 1 {
+                Text("\u{00d7}\(count)")
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.vertical, 3)
+        .padding(.horizontal, 6)
     }
 }
 

@@ -155,7 +155,7 @@ struct SessionView: View {
     }
 
     private var currentFileChanges: [FileChange] {
-        // Extract file changes from tool activities (structured data from the SDK)
+        // Extract actual file modifications from tool activities (Edit, Write, Create)
         var changes: [FileChange] = []
 
         for message in session.messages {
@@ -165,7 +165,6 @@ struct SessionView: View {
             switch activity.toolName {
             case "Edit":   action = .update
             case "Write":  action = .write
-            case "Read":   action = .read
             case "Create": action = .create
             default: continue
             }
@@ -185,10 +184,36 @@ struct SessionView: View {
 
         // Also check assistant message text for the legacy parsed format
         for message in session.messages where message.role == .assistant {
-            changes.append(contentsOf: FileChangeParser.parse(message.text))
+            let parsed = FileChangeParser.parse(message.text)
+            changes.append(contentsOf: parsed.filter { $0.action != .read })
         }
 
         return changes
+    }
+
+    private var currentFilesRead: [FileChange] {
+        var reads: [FileChange] = []
+
+        for message in session.messages {
+            guard message.role == .tool, let activity = message.toolActivity else { continue }
+            guard activity.toolName == "Read" else { continue }
+            guard let filePath = activity.input.filePath else { continue }
+
+            reads.append(FileChange(
+                action: .read,
+                filePath: filePath,
+                summaryLine: activity.summaryText,
+                diffLines: []
+            ))
+        }
+
+        // Also check legacy parsed format
+        for message in session.messages where message.role == .assistant {
+            let parsed = FileChangeParser.parse(message.text)
+            reads.append(contentsOf: parsed.filter { $0.action == .read })
+        }
+
+        return reads
     }
 
     var body: some View {
@@ -509,6 +534,7 @@ struct SessionView: View {
         .inspector(isPresented: $showDiffPanel) {
             DiffInspectorView(
                 changes: currentFileChanges,
+                filesRead: currentFilesRead,
                 tasks: Array(session.tasks.values),
                 isPresented: $showDiffPanel,
                 focus: inspectorFocus
@@ -524,62 +550,61 @@ struct SessionView: View {
         }
         .toolbar {
             if !hideToolbar {
-            ToolbarItem(placement: .primaryAction) {
-                HStack(spacing: 4) {
-                    Button {
-                        showAgentPanel.toggle()
-                    } label: {
-                        Label("Agents", systemImage: "brain.head.profile")
-                    }
-                    .help("Agents (Cmd+Shift+A)")
-
-                    Button {
-                        showMemoryTimeline.toggle()
-                    } label: {
-                        Label("Timeline", systemImage: "clock.arrow.circlepath")
-                    }
-                    .help("Memory Timeline")
-
-                    Button {
-                        showMemoryViewer.toggle()
-                    } label: {
-                        Label("Memory", systemImage: "brain")
-                    }
-                    .help("Memory Viewer (Cmd+Shift+M)")
-
-                    Button {
-                        session.scanSkills(force: true)
-                        showSkills.toggle()
-                    } label: {
-                        Label("Skills", systemImage: "wand.and.stars")
-                    }
-                    .help("Skills Panel")
-
-                    Button {
-                        showSettings.toggle()
-                    } label: {
-                        Label("Settings", systemImage: "gearshape")
-                    }
-                    .help("Session Settings")
-
-                    Button {
-                        if !showDiffPanel {
-                            // Opening - set focus based on content
-                            if !currentFileChanges.isEmpty {
-                                inspectorFocus = .changes
-                            } else if !session.tasks.isEmpty {
-                                inspectorFocus = .todos
-                            } else {
-                                inspectorFocus = .none
-                            }
-                        }
-                        showDiffPanel.toggle()
-                    } label: {
-                        Label("Workspace", systemImage: "sidebar.right")
-                    }
-                    .help("Toggle Workspace Panel")
+            ToolbarItemGroup(placement: .primaryAction) {
+                Button {
+                    showAgentPanel.toggle()
+                } label: {
+                    Image(systemName: "brain.head.profile")
                 }
-                .labelStyle(.titleAndIcon)
+                .help("Agents (Cmd+Shift+A)")
+
+                Button {
+                    showMemoryTimeline.toggle()
+                } label: {
+                    Image(systemName: "clock.arrow.circlepath")
+                }
+                .help("Memory Timeline")
+
+                Button {
+                    showMemoryViewer.toggle()
+                } label: {
+                    Image(systemName: "brain")
+                }
+                .help("Memory Viewer (Cmd+Shift+M)")
+
+                Button {
+                    session.scanSkills(force: true)
+                    showSkills.toggle()
+                } label: {
+                    Image(systemName: "wand.and.stars")
+                }
+                .help("Skills Panel")
+
+                Button {
+                    showSettings.toggle()
+                } label: {
+                    Image(systemName: "gearshape")
+                }
+                .help("Session Settings")
+
+                Button {
+                    if !showDiffPanel {
+                        // Opening - set focus based on content
+                        if !currentFileChanges.isEmpty {
+                            inspectorFocus = .changes
+                        } else if !currentFilesRead.isEmpty {
+                            inspectorFocus = .filesRead
+                        } else if !session.tasks.isEmpty {
+                            inspectorFocus = .todos
+                        } else {
+                            inspectorFocus = .none
+                        }
+                    }
+                    showDiffPanel.toggle()
+                } label: {
+                    Image(systemName: "sidebar.right")
+                }
+                .help("Toggle Workspace Panel")
             }
             }
         }

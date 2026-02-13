@@ -10,26 +10,68 @@ struct SplitDetailView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            let totalWidth = geometry.size.width
-            let dividerWidth: CGFloat = 8
-            let usableWidth = totalWidth - dividerWidth
-            let rawLeft = usableWidth * manager.splitRatio + dragOffset
-            let leftWidth = min(max(rawLeft, 250), usableWidth - 250)
-            let rightWidth = usableWidth - leftWidth
+            let layout = SplitLayout(
+                totalWidth: geometry.size.width,
+                splitRatio: manager.splitRatio,
+                dragOffset: dragOffset
+            )
 
             HStack(spacing: 0) {
                 // Left pane: primary session
                 leftPane
-                    .frame(width: leftWidth)
+                    .frame(width: layout.leftWidth)
                     .clipped()
 
-                // Divider
-                splitDivider(totalWidth: totalWidth)
-                    .frame(width: dividerWidth)
+                // Divider with controls
+                ZStack {
+                    splitDivider(totalWidth: geometry.size.width)
+
+                    VStack(spacing: 8) {
+                        // Close split button
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                manager.exitSplitScreen()
+                            }
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 16))
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Exit Split Screen")
+
+                        // Session switcher
+                        if let splitSession = manager.splitSession {
+                            Menu {
+                                let available = manager.sessions.filter { $0.id != manager.selectedSessionID }
+                                ForEach(available) { session in
+                                    Button {
+                                        withAnimation(.easeInOut(duration: 0.2)) {
+                                            manager.selectSplitSession(session.id)
+                                        }
+                                    } label: {
+                                        Label(session.name, systemImage: session.isTerminal ? "terminal.fill" : "square.stack.3d.down.dottedline")
+                                    }
+                                    .disabled(session.id == splitSession.id)
+                                }
+                            } label: {
+                                Image(systemName: "arrow.left.arrow.right.circle.fill")
+                                    .font(.system(size: 16))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .menuStyle(.borderlessButton)
+                            .frame(width: 20)
+                            .help("Switch Session")
+                        }
+                    }
+                    .padding(.top, 8)
+                    .frame(maxHeight: .infinity, alignment: .top)
+                }
+                .frame(width: SplitLayout.dividerWidth)
 
                 // Right pane: split session
                 rightPane
-                    .frame(width: rightWidth)
+                    .frame(width: layout.rightWidth)
                     .clipped()
             }
         }
@@ -54,20 +96,6 @@ struct SplitDetailView: View {
         if let anySession = manager.splitSession {
             sessionContent(for: anySession, hideToolbar: true)
                 .id(anySession.id)
-                .overlay(alignment: .topTrailing) {
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            manager.exitSplitScreen()
-                        }
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.title3)
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .padding(8)
-                    .help("Exit Split Screen")
-                }
         } else {
             SplitSessionPicker(manager: manager)
         }
@@ -112,10 +140,11 @@ struct SplitDetailView: View {
                     }
                     .onEnded { _ in
                         isDragging = false
-                        let usableWidth = totalWidth - 8
-                        let rawLeft = usableWidth * manager.splitRatio + dragOffset
-                        let clampedLeft = min(max(rawLeft, 250), usableWidth - 250)
-                        manager.splitRatio = clampedLeft / usableWidth
+                        manager.splitRatio = SplitLayout.clampedRatio(
+                            currentRatio: manager.splitRatio,
+                            dragOffset: dragOffset,
+                            totalWidth: totalWidth
+                        )
                         dragOffset = 0
                         manager.saveManifest()
                     }

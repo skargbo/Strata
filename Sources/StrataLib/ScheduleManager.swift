@@ -3,7 +3,7 @@ import UserNotifications
 
 /// Manages scheduled prompts — persistence, timer scheduling, and execution.
 @Observable
-final class ScheduleManager {
+public final class ScheduleManager {
     var schedules: [ScheduledPrompt] = []
     var isRunningSchedule: Bool = false
     var currentlyRunningId: UUID?
@@ -22,7 +22,7 @@ final class ScheduleManager {
         return strataDir.appendingPathComponent("schedules.json")
     }()
 
-    init(sessionManager: SessionManager? = nil) {
+    public init(sessionManager: SessionManager? = nil) {
         self.sessionManager = sessionManager
         loadSchedules()
         scheduleAllTimers()
@@ -30,7 +30,7 @@ final class ScheduleManager {
     }
 
     /// Connect to the session manager (called after init if not provided)
-    func connect(to sessionManager: SessionManager) {
+    public func connect(to sessionManager: SessionManager) {
         self.sessionManager = sessionManager
         // Find existing "Scheduled Runs" group if it exists
         self.scheduledRunsGroupId = sessionManager.groups.first { $0.name == Self.scheduledRunsGroupName }?.id

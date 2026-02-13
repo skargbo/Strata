@@ -129,14 +129,14 @@ enum NotificationSound: String, CaseIterable, Identifiable {
 
 // MARK: - Appearance Mode
 
-enum AppearanceMode: String, CaseIterable, Identifiable {
+public enum AppearanceMode: String, CaseIterable, Identifiable {
     case dark
     case light
     case auto
 
-    var id: String { rawValue }
+    public var id: String { rawValue }
 
-    var displayName: String {
+    public var displayName: String {
         switch self {
         case .dark: "Dark"
         case .light: "Light"
@@ -144,7 +144,7 @@ enum AppearanceMode: String, CaseIterable, Identifiable {
         }
     }
 
-    var colorScheme: ColorScheme? {
+    public var colorScheme: ColorScheme? {
         switch self {
         case .dark: .dark
         case .light: .light

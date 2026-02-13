@@ -1,8 +1,12 @@
 import AppKit
 import SwiftUI
 
-struct AppCommands: Commands {
-    let manager: SessionManager
+public struct AppCommands: Commands {
+    public let manager: SessionManager
+
+    public init(manager: SessionManager) {
+        self.manager = manager
+    }
     @FocusedValue(\.diffPanelToggle) var diffPanelToggle
     @FocusedValue(\.settingsToggle) var settingsToggle
     @FocusedValue(\.focusedModeToggle) var focusedModeToggle
@@ -14,7 +18,7 @@ struct AppCommands: Commands {
     @FocusedValue(\.mcpPanelToggle) var mcpPanelToggle
     @FocusedValue(\.splitScreenToggle) var splitScreenToggle
 
-    var body: some Commands {
+    public var body: some Commands {
         // Replace the default New Window command
         CommandGroup(replacing: .newItem) {
             Button("New Claude Session") {

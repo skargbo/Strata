@@ -2,7 +2,7 @@ import Foundation
 
 /// Manages multiple sessions (Claude chat and terminal).
 @Observable
-final class SessionManager {
+public final class SessionManager {
     var sessions: [AnySession] = []
     var groups: [SessionGroup] = []
     var sessionGroupMap: [UUID: UUID] = [:]  // sessionId -> groupId
@@ -22,7 +22,7 @@ final class SessionManager {
         return sessions.first { $0.id == id }
     }
 
-    var appearanceMode: AppearanceMode = .dark {
+    public var appearanceMode: AppearanceMode = .dark {
         didSet {
             UserDefaults.standard.set(appearanceMode.rawValue, forKey: "appearanceMode")
         }
@@ -30,7 +30,7 @@ final class SessionManager {
 
     private let persistence = PersistenceManager.shared
 
-    init() {
+    public init() {
         // Restore appearance from UserDefaults
         if let raw = UserDefaults.standard.string(forKey: "appearanceMode"),
            let mode = AppearanceMode(rawValue: raw) {
@@ -39,6 +39,11 @@ final class SessionManager {
 
         // Restore sessions from disk
         restoreSessions()
+    }
+
+    /// Test-only initializer that skips persistence restore.
+    public init(forTesting: Bool) {
+        // No persistence restore — starts with empty state
     }
 
     // MARK: - Restore
@@ -213,7 +218,7 @@ final class SessionManager {
     // MARK: - Persistence
 
     /// Save everything — called on app quit.
-    func saveAll() {
+    public func saveAll() {
         persistence.flushPendingSaves()
 
         // Save manifest

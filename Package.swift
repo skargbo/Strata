@@ -11,10 +11,20 @@ let package = Package(
         .package(url: "https://github.com/migueldeicaza/SwiftTerm.git", from: "1.0.0")
     ],
     targets: [
+        .target(
+            name: "StrataLib",
+            dependencies: ["SwiftTerm"],
+            path: "Sources/StrataLib"
+        ),
         .executableTarget(
             name: "Strata",
-            dependencies: ["SwiftTerm"],
+            dependencies: ["StrataLib"],
             path: "Sources/Strata"
+        ),
+        .testTarget(
+            name: "StrataTests",
+            dependencies: ["StrataLib"],
+            path: "Tests/StrataTests"
         )
     ]
 )

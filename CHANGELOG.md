@@ -2,6 +2,22 @@
 
 All notable changes to Strata are documented here.
 
+## [1.7.0] - 2026-02-11
+
+### Added
+- **Workspace: Files Read section** — file reads are now shown in a separate "Files Read" section instead of being mixed into "Changes", with de-duplicated paths and read counts
+- **Test suite** — 49 unit tests covering split layout math, session manager split state, and toolbar configuration
+- **StrataLib module** — extracted all library code into a separate `StrataLib` target for testability
+
+### Changed
+- Toolbar buttons for session tools (Agents, Timeline, Memory, Skills, Settings, Workspace) now render as individual icon-only items via `ToolbarItemGroup`, fixing buttons being hidden or missing from the toolbar
+- Workspace panel auto-open now only triggers for actual file modifications, not reads
+- Split view divider width is now consistent (40pt) across layout calculation and rendering, fixing a 16pt overlap bug
+
+### Fixed
+- Session view toolbar buttons completely missing from toolbar due to `HStack` + `.labelStyle(.iconOnly)` rendering issue
+- Split layout overlap where divider width in calculation (24pt) didn't match the rendered ZStack (40pt)
+
 ## [1.6.0] - 2026-02-10
 
 ### Added
